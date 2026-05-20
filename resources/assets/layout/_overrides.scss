@@ -1,0 +1,408 @@
+//Suggested location to add your overrides so that migration would be easy by just updating the SASS folder in the future
+
+body {
+    // background-image: url(/assets/layout/images/backgrounds/bg-body.png);
+    background-color: #F7F7F5;
+}
+.panel-login {
+    @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
+    height: 100vh;
+}
+.panel-login-mobile {
+    @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
+    height: 40vh;
+    width: 100%;
+}
+.sidebar-header-mobile {
+    @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
+}
+.topbar-mobile {
+    @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
+    height: 15vh;
+    width: 100%;
+    // z-index: -1;
+}
+@media screen and (max-width: 1024px) {
+    .topbar-mobile {
+        position: inherit;
+    }
+    .layout-main {
+        padding: 0px 1rem 1rem 1rem;
+        margin-top: -8vh;
+        z-index: 999;
+    }
+    .layout-wrapper {
+        justify-content: initial;
+    }
+    .menu-footer {
+        position: fixed !important;
+    }
+    .menu-footer .p-button-icon{
+        font-size: 1.25rem;
+    }
+    .menu-footer .p-button{
+        width: 100%;
+        padding-top:10px;
+        padding-bottom:10px;
+    }
+    .menu-footer .p-button:focus{
+        box-shadow:none;
+    }
+
+    .menu-footer .p-button.p-button-text.p-button-plain:enabled:hover{
+        color:$topbarLeftBgColor;
+        border-bottom:3px $topbarLeftBgColor solid;
+        background-color: white;
+    }
+    .menu-footer .p-button .p-button-icon-left {
+        margin-right: 0;
+    }
+}
+
+//  {
+//     @include linear-gradient-left($topbarLeftBgColor, $topbarRightBgColor);
+// }
+.text-orange {
+    color: $topbarRightBgColor;
+}
+.p-button-primary-theme {
+    background: $topbarRightBgColor !important;
+    border: 1px solid $topbarLeftBgColor  !important;
+}
+.p-button-primary-theme:active {
+    background: $topbarLeftBgColor  !important;
+    color: #ffffff;
+    border-color: $topbarLeftBgColor  !important;
+}
+.p-button-primary-theme:hover {
+    background: $topbarLeftBgColor  !important;
+    color: #ffffff;
+    border-color: $topbarLeftBgColor  !important;
+}
+.p-sortable-column {
+    background-color: #2c3237 !important;
+    color: white !important;
+}
+// .p-datatable-thead tr:first-child th:last-child {
+//     background-color: #05486a !important;
+//     content: "Op.";
+// }
+.p-datatable-thead tr:first-child th {
+    background-color: #fc7038 !important;
+    color: white !important;
+    font-weight: bold !important;
+}
+// .p-datatable-thead tr:first-child th:last-child .p-column-header-content:after {
+//     // background-color: #1c293a !important;
+//     content: "Op.";
+//     color: white;
+// }
+.customer-badge {
+    border-radius: 3px;
+    padding: 0.1em 0.3rem;
+    // text-transform: uppercase;
+    font-weight: 700;
+    font-size: 10.5px;
+    letter-spacing: 0.3px;
+}
+.customer-badge.status-0 {
+    background-color: #ffcdd2;
+    color: #c63737;
+}
+.customer-badge.status-1 {
+    background-color: #c8e6c9;
+    color: #256029;
+}
+.outofstock {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ff5252;
+    text-decoration: line-through;
+}
+
+.lowstock {
+    font-size: 14px;
+    font-weight: 700;
+    color: #ffa726;
+}
+
+.instock {
+    font-size: 14px;
+    font-weight: 700;
+    color: #4baf50;
+}
+
+.bg-primary .p-dialog-header {
+    @include linear-gradient-left($menuitemDarkActiveBgColor,$menuDarkBgColorFirst);
+    color: white;
+    height: 45px;
+}
+.bg-help .p-dialog-header {
+    @include linear-gradient-left(#8c239e, #b448c7);
+    color: white;
+    height: 45px;
+}
+.bg-danger .p-dialog-header {
+    @include linear-gradient-left(#c02929, #f83a3a);
+    color: white;
+    height: 45px;
+}
+.bg-success .p-dialog-header {
+    @include linear-gradient-left(#5e8f32, #81c546);
+    color: white;
+    height: 45px;
+}
+.bg-warning .p-dialog-header {
+    @include linear-gradient-left(#fbc02d, #ffe058);
+    color: #212529;
+    height: 45px;
+}
+.bg-info .p-dialog-header {
+    @include linear-gradient-left(#0288d1, #01a5fd);
+    color: white;
+    height: 45px;
+}
+
+.p-dialog .p-dialog-footer .digemid {
+    text-align: left;
+}
+
+.p-autocomplete-dd .p-autocomplete-dropdown {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0px;
+    background-color: var(--surface-b);
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+.p-autocomplete-dd .p-autocomplete-dropdown:active {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0px;
+    background: #ced4da;
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+.p-autocomplete-dd .p-autocomplete-dropdown:hover {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0px;
+    background: #ced4da;
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+
+.p-datatable-table .p-button-rounded {
+    height: 24px !important;
+    width: 24px !important;
+    margin-top: 1px;
+    margin-bottom: 1px;
+}
+// messages confirmations
+
+.bg-danger-asistencia {
+    background-color:#c02929 !important;
+    color:white !important;
+    padding: 2px;
+    font-size: 11px;
+    border: solid 1px white;
+}
+.bg-success-asistencia {
+    background-color:#5e8f32 !important;
+    color:white !important;
+    padding: 2px;
+    font-size: 11px;
+    border: solid 1px white;
+}
+.bg-warning-asistencia {
+    background-color:#fbc02d !important;
+    color:white !important;
+    padding: 2px;
+    font-size: 11px;
+    border: solid 1px white;
+}
+
+.bg-danger .confirmation-content i {
+    color: #c02929;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.bg-danger .confirmation-content span {
+    vertical-align: middle;
+    display: inline-block;
+}
+.bg-success .confirmation-content i {
+    color: #5e8f32;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.bg-success .confirmation-content span {
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.bg-warning .confirmation-content i {
+    color: #fbc02d;
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.bg-warning .confirmation-content span {
+    vertical-align: middle;
+    display: inline-block;
+}
+
+.input-blocked {
+    background-color: var(--surface-d);
+}
+
+.p-datatable .p-datatable-tbody > tr.p-highlight {
+    background: rgb(39 183 37 / 16%);
+}
+
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even).p-highlight {
+    background: rgb(39 183 37 / 16%);
+}
+
+.p-button.p-datepicker-trigger:hover {
+    background: #ced4da;
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+.p-button.p-datepicker-trigger:active {
+    background: #ced4da;
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+.p-button.p-datepicker-trigger {
+    background-color: var(--surface-b);
+    border: 1px solid #ced4da;
+    color: #9b9c9c;
+}
+.inventory {
+    background: rgb(39 183 37 / 16%);
+}
+
+.p-fieldset.p-fieldset-toggleable .p-fieldset-legend a {
+    padding: 7px;
+}
+
+.p-fieldset.p-fieldset-toggleable .p-fieldset-legend a .p-fieldset-toggler {
+    font-size: 10px;
+}
+.resumen-inventory .p-fieldset .p-fieldset-content {
+    padding: 0;
+    padding-top: 5px;
+}
+
+.p-dialog .p-dialog-content {
+    background: #ffffff;
+    color: #495057;
+    padding: 2rem 1.5rem 1rem 1.5rem;
+}
+.p-datatable.p-datatable-striped .p-datatable-tbody > tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.layout-sidebar-light{
+    li.active-default {
+        > a {
+            background-color: $menuitemActiveBgColor;
+            color: $menuitemActiveColor !important;
+        }
+    }
+}
+
+.layout-sidebar-dark{
+    li.active-default {
+        > a {
+            background-color: $menuitemDarkActiveBgColor;
+            color: $menuitemDarkActiveColor !important;
+        }
+    }
+}
+
+.menu-footer {
+    position: initial;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    color: white;
+    text-align: center;
+    -webkit-box-shadow: 0px -7px 17px -1px rgba(0, 0, 0, 0.18);
+    -moz-box-shadow: 0px -7px 17px -1px rgba(0, 0, 0, 0.18);
+    box-shadow: 0px -7px 17px -1px rgba(0, 0, 0, 0.18);
+}
+.menu-footer .p-button-icon{
+    font-size: 1.25rem;
+}
+.menu-footer .p-button{
+    width: 100%;
+    padding-top:10px;
+    padding-bottom:10px;
+}
+.menu-footer .p-button:focus{
+    box-shadow:none;
+}
+
+.menu-footer .p-button.p-button-text.p-button-plain:enabled:hover{
+    color:$topbarLeftBgColor;
+    border-bottom:3px $topbarLeftBgColor solid;
+    background-color: white;
+}
+.menu-footer .menu-tab-active.p-button.p-button-text.p-button-plain{
+    color:$topbarLeftBgColor !important;
+    border-bottom:3px $topbarLeftBgColor solid;
+    background-color: white !important;
+    font-weight: bold;
+}
+
+/* Green-theme. */
+.vuecal__menu, .vuecal__cell-events-count {
+    // background-color: #42b983;
+    background-color: var(--teal-400) !important;
+    font-size: 0.9rem;
+}
+.vuecal__title-bar {
+    background-color: var(--teal-200) !important;
+    font-size: 1.1rem !important;
+}
+.vuecal__time-column {
+    font-size: 0.9rem !important;
+}
+.vuecal__cell--today, .vuecal__cell--current {
+    background-color: rgba(240, 240, 255, 0.4);
+}
+.vuecal:not(.vuecal--day-view) .vuecal__cell--selected {
+    background-color: rgba(235, 255, 245, 0.4);
+}
+.vuecal__cell--selected:before {
+    border-color: rgba(66, 185, 131, 0.5);
+}
+.vuecal__flex.vuecal__weekdays-headings{
+    font-size: 0.8rem;
+}
+.vuecal__title-bar button {
+    color: var(--text-color);
+}
+.vuecal__title-bar button:active,button:hover {
+    color: var(--text-color) !important;
+    background: rgb(10 123 209 / 0%) !important;
+}
+
+.vuecal__no-event {
+    font-size: 10px;
+}
+
+.body-ciclo {
+    width: 100%;
+    height: 300px;
+    object-fit: cover;
+}
+
+@media only screen and (max-width: 600px) {
+    .body-ciclo {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+    }
+}
