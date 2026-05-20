@@ -64,10 +64,9 @@ class CursosController extends Controller
                 $finDiaActual = new DateTime(date($calificacionDocente->asistenciaDocente->fecha . " 23:59:59"));
                 // dd($finDiaActual);
                 if ($fechaActual > $finDiaActual) {
-                //$calificacionDocente->estado = "0";
-                //$calificacionDocente->save();
-                }
-                else {
+                    //$calificacionDocente->estado = "0";
+                    //$calificacionDocente->save();
+                } else {
                     $calificacionEstudiante = CalificacionDocenteDetalle::where([["estudiantes_id", $idEstudiante], ["calificacion_docentes_id", $calificacionDocente->id]])->get();
 
                     if (count($calificacionEstudiante) == 0) {
@@ -105,7 +104,7 @@ class CursosController extends Controller
             ->first();
 
         //return $carga;
-        $calificacionDocente = CalificacionDocente::where([["carga_academicas_id", $request->cargaId], ["estado", '1']])
+        $calificacionDocente = CalificacionDocente::where([["carga_academicas_id", $request->cargaId],["estado",'1']])
             ->orderby("asistencia_docentes_id", "desc")
             ->first();
         // dd($calificacionDocente);
@@ -122,30 +121,27 @@ class CursosController extends Controller
                 $calificacionDocente->docentes_id = $carga->docentes_id;
                 $calificacionDocente->carga_academicas_id = $carga->id;
                 $calificacionDocente->asistencia_docentes_id = $carga->asistenciaDocente()->max('id');
-                if ($inscripcion) {
-                    if ($inscripcion->modalidad == '1') { //virtual
-                        $calificacionDocente->modalidad = '1'; //virtual
-                    }
-                    elseif ($inscripcion->modalidad == '2') { //preasensial
-                        $calificacionDocente->modalidad = '0'; //presensial
+                if($inscripcion){
+                    if($inscripcion->modalidad == '1'){ //virtual
+                        $calificacionDocente->modalidad = '1';  //virtual
+                    }elseif($inscripcion->modalidad == '2'){ //preasensial
+                        $calificacionDocente->modalidad = '0';  //presensial
                     }
                 }
                 $calificacionDocente->save();
-            }
-            else {
+            }else {
                 $calificacionDocente->docentes_id = $carga->docentes_id;
-
-                if ($inscripcion) {
-                    if ($inscripcion->modalidad == '1') { //virtual
+            
+                if($inscripcion){
+                    if($inscripcion->modalidad == '1'){ //virtual
                         $calificacionDocente->modalidad = '1'; //virtual
-                    }
-                    elseif ($inscripcion->modalidad == '2') { //preasensial
+                    }elseif($inscripcion->modalidad == '2'){ //preasensial
                         $calificacionDocente->modalidad = '0'; //presensial
                     }
                 }
                 $calificacionDocente->save();
             }
-
+    
             foreach ($request->preguntas as $key => $value) {
                 if (!empty($value)) {
 
@@ -159,30 +155,21 @@ class CursosController extends Controller
             }
 
             $totalPuntaje = CalificacionDocenteDetalle::where("calificacion_docentes_id", $calificacionDocente->id)->sum("puntaje");
-
-            //id-criterio
-
-            if ($inscripcion->modalidad == '1')
-                $observado = CalificacionDocenteDetalle::where([["calificacion_docentes_id", $calificacionDocente->id], ['criterios_id', 49]])->sum("puntaje");
-            else
-                $observado = CalificacionDocenteDetalle::where([["calificacion_docentes_id", $calificacionDocente->id], ['criterios_id', 40]])->sum("puntaje");
-
             $calificacionDocente->participantes = $calificacionDocente->participantes + 1;
-            $calificacionDocente->promedio = ($totalPuntaje - $observado) / ($calificacionDocente->participantes * $totalCriterios - 1);
-            $calificacionDocente->puntaje_total = ($totalPuntaje - $observado) / $calificacionDocente->participantes;
-            $calificacionDocente->observacion = $observado / $calificacionDocente->participantes;
+            $calificacionDocente->promedio = $totalPuntaje / ($calificacionDocente->participantes * $totalCriterios);
+            $calificacionDocente->puntaje_total = $totalPuntaje / $calificacionDocente->participantes;
+            $calificacionDocente->observacion = 0;
             $calificacionDocente->save();
 
             DB::commit();
             $response["message"] = 'Registro guardado correctamente';
             $response["status"] = true;
             $response["calificacion"] = $calificacionDocente->id;
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $response["message"] = 'Error al guardar registro, intentelo nuevamante.';
-            $response["error"] = $e;
-            $response["status"] = false;
+            $response["message"] =  'Error al guardar registro, intentelo nuevamante.';
+            $response["error"]  = $e; 
+            $response["status"] =  false;
         }
 
         return $response;
@@ -240,10 +227,10 @@ class CursosController extends Controller
         $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
         $cargaAcademica = DB::table('carga_academicas as ca')
             ->select(
-            'c.denominacion',
-            'c.color as color',
-            'c.id as id'
-        )
+                'c.denominacion',
+                'c.color as color',
+                'c.id as id'
+            )
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
             ->orderBy('c.id')
@@ -278,8 +265,7 @@ class CursosController extends Controller
         // return response()->json($curriculaDetalle);
         if (empty($curriculaDetalle)) {
             return "";
-        }
-        else {
+        } else {
             $cuadernillo = DB::table('cuadernillos')->select('path')->where([
                 ['semana', $request->semana],
                 ['tipo', '2'],
@@ -289,8 +275,7 @@ class CursosController extends Controller
 
             if (empty($cuadernillo)) {
                 return "";
-            }
-            else {
+            } else {
                 return response()->json($cuadernillo);
             }
         }
@@ -298,16 +283,13 @@ class CursosController extends Controller
     public function getCriteriosDocente(Request $request)
     {
         //return $request->modalidad;
-        /*   if ($request->modalidad == "1") {
-         $modalidad = "1";
-         } else {
-         $modalidad = "0";
-         }
-         $response  = Criterio::where([["estado", "1"], ["tipo", "1"], ["modalidad", $modalidad]])->get();*/
-        $response = Criterio::where([
-            ["estado", "1"],
-            ["tipo", "1"]
-        ])->get();
+        if ($request->modalidad == "1") {
+            $modalidad = "1";
+        } else {
+            $modalidad = "0";
+        }
+
+        $response  = Criterio::where([["estado", "1"], ["tipo", "1"], ["modalidad", $modalidad]])->get();
 
         return $response;
     }
@@ -347,71 +329,13 @@ class CursosController extends Controller
             DB::commit();
             $response["message"] = 'Registro guardado correctamente';
             $response["status"] = true;
-        }
-        catch (\Exception $e) {
+        } catch (\Exception $e) {
             DB::rollback();
-            $response["message"] = 'Error al guardar registro, intentelo nuevamante.';
-            $response["status"] = false;
+            $response["message"] =  'Error al guardar registro, intentelo nuevamante.';
+            $response["status"] =  false;
         }
 
         return $response;
-    // dd($request->all(), $id);
-    }
-    public function indexTemario()
-    {
-        $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::with("grupoAula")->where("estudiantes_id", $idEstudiante)->first();
-        $response["area"] = 0;
-        if ($matricula) {
-            $response["area"] = $matricula->grupoAula->area->id;
-        }
-
-        return Inertia::render('Estudiante/Temario', ["data" => $response]);
-    }
-    public function getCursosEstudianteTemario()
-    {
-        $idEstudiante = Auth::user()->id;
-        $periodo = Periodo::where('estado', '1')->first();
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
-
-        $cargaAcademica = DB::table('carga_academicas as ca')
-            ->select(
-            'c.denominacion as curso',
-            'c.color as color',
-            'c.id as id',
-            'a.id as idArea',
-            'a.denominacion as area'
-        )
-            ->join('cursos as c', 'c.id', 'ca.cursos_id')
-            ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
-            ->join('areas as a', 'a.id', 'ga.areas_id')
-            ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
-            ->where('ca.periodos_id', $periodo->id)
-            ->where('ca.estado', '1')
-            ->groupBy("ga.areas_id", "c.id")
-            ->orderBy("ga.areas_id", "asc")
-            ->get();
-
-        $temarios = [];
-        foreach ($cargaAcademica as $k => $val) {
-            $curriculaDetalle = CurriculaDetalle::where([['cursos_id', $val->id], ['curriculas_id', $matricula->curriculas_id]])->first();
-
-            if ($curriculaDetalle) {
-                $obj = new \stdClass;
-                $obj->id = $val->id;
-                $obj->area = $val->area;
-                $obj->curso = $val->curso;
-                $obj->color = $val->color;
-                $obj->base_path = env("EXTERNALURLIMAGE");
-                $obj->temarios = DB::table('temarios')->select('path', 'id')->where([
-                    ['periodos_id', $periodo->id],
-                    ['curricula_detalles_id', $curriculaDetalle->id]
-                ])->first();
-                $temarios[] = $obj;
-            }
-        }
-        $response["temarios"] = $temarios;
-
-        return response()->json($response);
+        // dd($request->all(), $id);
     }
 }
