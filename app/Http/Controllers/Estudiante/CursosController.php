@@ -338,4 +338,63 @@ class CursosController extends Controller
         return $response;
         // dd($request->all(), $id);
     }
+
+    public function indexTemario()
+    {
+        $idEstudiante = Auth::user()->id;
+        $matricula = Matricula::with("grupoAula")->where("estudiantes_id", $idEstudiante)->first();
+        $response["area"] = 0;
+        if ($matricula) {
+            $response["area"] = $matricula->grupoAula->area->id;
+        }
+
+        return Inertia::render('Estudiante/Temario', ["data" => $response]);
+    }
+    
+    public function getCursosEstudianteTemario()
+    {
+        $idEstudiante = Auth::user()->id;
+        $periodo = Periodo::where('estado', '1')->first();
+        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+
+        $cargaAcademica = DB::table('carga_academicas as ca')
+            ->select(
+            'c.denominacion as curso',
+            'c.color as color',
+            'c.id as id',
+            'a.id as idArea',
+            'a.denominacion as area'
+        )
+            ->join('cursos as c', 'c.id', 'ca.cursos_id')
+            ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
+            ->join('areas as a', 'a.id', 'ga.areas_id')
+            ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
+            ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
+            ->groupBy("ga.areas_id", "c.id")
+            ->orderBy("ga.areas_id", "asc")
+            ->get();
+
+        $temarios = [];
+        foreach ($cargaAcademica as $k => $val) {
+            $curriculaDetalle = CurriculaDetalle::where([['cursos_id', $val->id], ['curriculas_id', $matricula->curriculas_id]])->first();
+
+            if ($curriculaDetalle) {
+                $obj = new \stdClass;
+                $obj->id = $val->id;
+                $obj->area = $val->area;
+                $obj->curso = $val->curso;
+                $obj->color = $val->color;
+                $obj->base_path = env("EXTERNALURLIMAGE");
+                $obj->temarios = DB::table('temarios')->select('path', 'id')->where([
+                    ['periodos_id', $periodo->id],
+                    ['curricula_detalles_id', $curriculaDetalle->id]
+                ])->first();
+                $temarios[] = $obj;
+            }
+        }
+        $response["temarios"] = $temarios;
+
+        return response()->json($response);
+    }
 }
