@@ -113,7 +113,7 @@ class LoginGoogleController extends Controller
         $idEstudiante = $estudiante ? $estudiante->id : '';
         #return $idEstudiante;
         // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::where([['matricula', '1'], ['estudiantes_id', $idEstudiante]])->first();
+        $inscripcion = Inscripciones::where([['matricula', '1'],['estado', '1'],['estudiantes_id', $idEstudiante]])->first();
         
 
 
