@@ -4,10 +4,11 @@ El despliegue usa releases atomicos y nunca ejecuta migraciones. Un fallo de Com
 
 ## Preparacion unica del servidor
 
-Ejecutar desde una copia del proyecto en `10.1.20.59`:
+Ejecutar desde una copia del proyecto en `10.1.20.59`. Si las rutas fueron creadas por `root`, usar:
 
 ```bash
-EXISTING_RELEASE=/var/www/app-cepreuna/releases/release-actual \
+sudo env DEPLOY_USER=developer WEB_GROUP=www-data \
+  EXISTING_RELEASE=/var/www/app-cepreuna/releases/release-actual \
   bash deploy/install-server.sh
 ```
 
@@ -21,7 +22,7 @@ Opcionalmente crear `/var/www/app-cepreuna/shared/deploy.env`:
 
 ```bash
 PHP_BIN=/usr/bin/php8.3
-COMPOSER_BIN=/usr/local/bin/composer
+COMPOSER_BIN=/var/www/app-cepreuna/shared/bin/composer.phar
 BUILD_FRONTEND=0
 HEALTH_URL=https://app.cepreuna.edu.pe/
 RELOAD_CMD="sudo -n systemctl reload php8.3-fpm"
