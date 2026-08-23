@@ -20,13 +20,16 @@ jobs:
           extensions: gd, mbstring, pdo_mysql
           coverage: none
 
+      - name: Preparar archivo de entorno
+        run: cp .env.example .env
+
       - name: Instalar dependencias PHP
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-scripts
 
       - name: Preparar Laravel
         run: |
-          cp .env.example .env
           php artisan key:generate
+          php artisan package:discover --ansi
 
       - name: Probar panel Docente
         run: |
