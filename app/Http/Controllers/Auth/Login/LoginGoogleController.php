@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use App\Models\DocenteApto;
 use App\Models\Estudiante;
 use App\Models\Inscripciones;
+use App\Models\Periodo;
 use Inertia\Inertia;
 
 class LoginGoogleController extends Controller
@@ -64,10 +65,14 @@ class LoginGoogleController extends Controller
     {
         $user = Socialite::driver('google')->stateless()->user();
         // dd($user);
-        $docenteApto = DocenteApto::query()
-            ->delPeriodoActual()
-            ->where('idgsuite', $user->id)
-            ->first();
+        $periodo = Periodo::actual();
+        $docenteApto = $periodo
+            ? DocenteApto::query()
+                ->conIdentidadGoogle($user->id)
+                ->conCargaEnPeriodo($periodo->id)
+                ->masReciente()
+                ->first()
+            : null;
         $estudiante = Estudiante::where('idgsuite', $user->id)->first();
         $idEstudiante = $estudiante ? $estudiante->id : '';
         // validar periodo para el siguiente proceso
@@ -89,7 +94,6 @@ class LoginGoogleController extends Controller
             Auth::guard('docente')->login($docenteApto);
 
             // $usuario = Auth::guard('docente')->user();
-            $token = $docenteApto->createToken('auth-token')->plainTextToken;
             // dd($usuario);
             return $this->redirectByRole('Docente');
             // return Inertia::render('Dashboard');
@@ -101,7 +105,6 @@ class LoginGoogleController extends Controller
             Auth::guard('estudiante')->login($estudiante);
 
             // $usuario = Auth::guard('docente')->user();
-            $token = $estudiante->createToken('auth-token')->plainTextToken;
             // dd($usuario);
             return $this->redirectByRole('Estudiante');
             // return Inertia::render('Dashboard');
@@ -136,15 +139,23 @@ class LoginGoogleController extends Controller
     }
 
     public function loginSinGsuit(request $request){
-       
-        $docenteApto = DocenteApto::query()
-            ->delPeriodoActual()
-            ->where([
-                ['usuario', $request->email],
-                ['password', $request->password],
-            ])
-            ->first();
-        $estudiante = Estudiante::where([['usuario', $request->email],['password',$request->password]])->first();
+        $credenciales = $request->validate([
+            'email' => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $periodo = Periodo::actual();
+        $docenteApto = $periodo
+            ? DocenteApto::query()
+                ->conCredenciales($credenciales['email'], $credenciales['password'])
+                ->conCargaEnPeriodo($periodo->id)
+                ->masReciente()
+                ->first()
+            : null;
+        $estudiante = Estudiante::where([
+            ['usuario', $credenciales['email']],
+            ['password', $credenciales['password']],
+        ])->first();
         $idEstudiante = $estudiante ? $estudiante->id : '';
         #return $idEstudiante;
         // validar periodo para el siguiente proceso
@@ -179,7 +190,6 @@ class LoginGoogleController extends Controller
             Auth::guard('docente')->login($docenteApto);
 
             // $usuario = Auth::guard('docente')->user();
-            $token = $docenteApto->createToken('auth-token')->plainTextToken;
             // dd($usuario);
             return $this->redirectByRole('Docente');
             // return Inertia::render('Dashboard');
@@ -200,8 +210,6 @@ class LoginGoogleController extends Controller
             Auth::guard('estudiante')->login($estudiante);
 
             // $usuario = Auth::guard('docente')->user();
-            $token = $estudiante->createToken('auth-token')->plainTextToken;
-            
             // dd($usuario);
             return $this->redirectByRole('Estudiante');
             // return Inertia::render('Dashboard');

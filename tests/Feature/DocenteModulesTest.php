@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Http\Controllers\Docente\HorarioController;
 use App\Models\CargaAcademica;
+use App\Models\DocenteApto;
 use App\Models\Sesiones;
 use Tests\TestCase;
 
@@ -52,6 +53,56 @@ class DocenteModulesTest extends TestCase
         $this->assertStringContainsString('`carga_academicas`.`docentes_id` = ?', $query->toSql());
         $this->assertStringContainsString('`carga_academicas`.`periodos_id` = ?', $query->toSql());
         $this->assertSame([52, 9], $query->getBindings());
+    }
+
+    public function test_la_cuenta_docente_historica_exige_carga_en_el_periodo_actual()
+    {
+        $query = DocenteApto::query()
+            ->conCredenciales('docente@cepreuna.edu.pe', 'clave')
+            ->conCargaEnPeriodo(10)
+            ->masReciente();
+
+        $sql = $query->toSql();
+
+        $this->assertStringContainsString('exists', $sql);
+        $this->assertStringContainsString('`carga_academicas` as `ca`', $sql);
+        $this->assertStringContainsString('`ca`.`docentes_id` = `docente_aptos`.`docentes_id`', $sql);
+        $this->assertStringContainsString('`ca`.`periodos_id` = ?', $sql);
+        $this->assertStringContainsString('`docentes`.`usuario` = ?', $sql);
+        $this->assertStringContainsString('order by `docente_aptos`.`periodos_id` desc', $sql);
+        $this->assertSame([
+            'docente@cepreuna.edu.pe',
+            'clave',
+            'docente@cepreuna.edu.pe',
+            'clave',
+            10,
+            '1',
+        ], $query->getBindings());
+    }
+
+    public function test_el_login_google_acepta_la_identidad_del_registro_maestro_docente()
+    {
+        $query = DocenteApto::query()->conIdentidadGoogle('google-id');
+
+        $this->assertStringContainsString('`docente_aptos`.`idgsuite` = ?', $query->toSql());
+        $this->assertStringContainsString('`docentes`.`idgsuite` = ?', $query->toSql());
+        $this->assertSame(['google-id', 'google-id'], $query->getBindings());
+    }
+
+    public function test_credenciales_vacias_nunca_se_convierten_en_una_busqueda_por_nulos()
+    {
+        $query = DocenteApto::query()->conCredenciales('', '');
+
+        $this->assertStringContainsString('1 = 0', $query->toSql());
+        $this->assertSame([], $query->getBindings());
+    }
+
+    public function test_el_login_rechaza_una_solicitud_sin_credenciales_antes_de_consultar_la_db()
+    {
+        $response = $this->from('/')->post(route('login-singsuit.login'), []);
+
+        $response->assertRedirect('/');
+        $response->assertSessionHasErrors(['email', 'password']);
     }
 
     public function test_el_scope_de_sesion_hereda_el_docente_y_periodo_de_su_carga()

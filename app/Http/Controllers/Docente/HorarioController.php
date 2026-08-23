@@ -65,7 +65,7 @@ class HorarioController extends Controller
         $docenteApto = Auth::guard('docente')->user();
         $horario = [];
 
-        if (!$periodo || !$docenteApto || (int) $docenteApto->periodos_id !== (int) $periodo->id) {
+        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
             $response["horario"] = $horario;
             return response()->json($response);
         }

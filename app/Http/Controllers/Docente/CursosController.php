@@ -61,6 +61,7 @@ class CursosController extends Controller
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
             ->where('ca.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
             ->orderBy('c.denominacion')
             ->orderBy('g.denominacion')
             ->get();
@@ -86,7 +87,8 @@ class CursosController extends Controller
         $carga = $this->cargaActualDelDocente(
             (int) $request->id,
             $docenteApto->docentes_id,
-            $periodo->id
+            $periodo->id,
+            true
         );
         abort_unless($carga, 403);
 
@@ -133,6 +135,7 @@ class CursosController extends Controller
             ->join('areas as a', 'a.id', 'ga.areas_id')
             ->where('ca.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
             ->distinct()
             ->orderBy('a.id', 'asc')
             ->orderBy('c.id', 'asc')
@@ -201,6 +204,7 @@ class CursosController extends Controller
             ->join('areas as a', 'a.id', 'ga.areas_id')
             ->where('ca.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
             ->distinct()
             ->orderBy('a.id', 'asc')
             ->orderBy('c.id', 'asc')
@@ -271,6 +275,7 @@ class CursosController extends Controller
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->where('ca.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
             ->where('ca.cursos_id', $request->curso)
             ->where('ga.areas_id', $request->area)
             ->exists();
@@ -329,7 +334,8 @@ class CursosController extends Controller
 
         $data = $data
             ->where('ca.docentes_id', $docenteApto->docentes_id)
-            ->where('ca.periodos_id', $periodo->id);
+            ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1');
         if (isset($request->curso)) {
             $data = $data->where('ca.id', $request->curso);
         }
@@ -492,6 +498,7 @@ class CursosController extends Controller
 
         $tieneGrupo = CargaAcademica::query()
             ->delDocenteEnPeriodo($docenteApto->docentes_id, $periodo->id)
+            ->where('estado', '1')
             ->where('grupo_aulas_id', $id)
             ->exists();
         abort_unless($tieneGrupo, 403);
@@ -521,7 +528,7 @@ class CursosController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = Auth::guard('docente')->user();
 
-        if (!$periodo || !$docenteApto || (int) $docenteApto->periodos_id !== (int) $periodo->id) {
+        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
             return null;
         }
 
@@ -544,6 +551,9 @@ class CursosController extends Controller
         return Sesiones::query()
             ->whereKey($sesionId)
             ->delDocenteEnPeriodo($docenteId, $periodoId)
+            ->whereHas('carga', function ($query) {
+                $query->where('estado', '1');
+            })
             ->first();
     }
 

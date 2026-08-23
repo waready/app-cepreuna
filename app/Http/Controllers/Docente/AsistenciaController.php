@@ -23,7 +23,7 @@ class AsistenciaController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = Auth::guard('docente')->user();
 
-        if (!$periodo || !$docenteApto || (int) $docenteApto->periodos_id !== (int) $periodo->id) {
+        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
             return response()->json(['asistencias' => []]);
         }
 
@@ -45,6 +45,7 @@ class AsistenciaController extends Controller
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
             ->where('ad.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.estado', '1')
             ->orderBy('ad.fecha')
             ->orderBy('ad.hora_inicio')
             ->get();

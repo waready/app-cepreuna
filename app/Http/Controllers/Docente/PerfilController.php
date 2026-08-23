@@ -30,7 +30,7 @@ class PerfilController extends Controller
         $docenteApto = DocenteApto::find($idDocenteApto);
         $periodo = Periodo::actual();
 
-        if (!$docenteApto || !$periodo || (int) $docenteApto->periodos_id !== (int) $periodo->id) {
+        if (!$docenteApto || !$periodo || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
             return response()->json(['docente' => null, 'docentea' => null, 'grados' => []]);
         }
 
