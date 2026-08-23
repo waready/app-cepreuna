@@ -26,10 +26,11 @@ jobs:
       - name: Instalar dependencias PHP
         run: composer install --no-interaction --prefer-dist --no-scripts
 
-      - name: Preparar Laravel
-        run: |
-          php artisan key:generate
-          php artisan package:discover --ansi
+      - name: Generar clave de Laravel
+        run: php artisan key:generate --ansi --verbose
+
+      - name: Descubrir paquetes de Laravel
+        run: php artisan package:discover --ansi --verbose
 
       - name: Probar panel Docente
         run: |
