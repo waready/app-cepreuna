@@ -1,7 +1,7 @@
 <template>
     <Toast />
     <app-layout :title="title" :mode="2">
-        <div class="card shadow-6">
+        <div class="card shadow-6 cursos-estudiante-panel">
             <div class="grid hidden sm:flex">
                 <div class="col-12">
                     <h5 class="font-bold">Cursos</h5>
@@ -35,7 +35,7 @@
                                     <i style="color: rgb(25, 234, 133)" v-if="carga.encuesta_realizada" class="pi pi-circle-on"></i>
                                 </div>
                             </template>
-                            <table v-if="carga.docente">
+                            <table v-if="carga.docente" class="curso-detalle">
                                 <tbody>
                                 <tr>
                                     <th>Docente:</th>
@@ -53,7 +53,7 @@
                                 <tr>
                                     <th>Meet:</th>
                                     <td>
-                                        <a class="" :href="carga.link" target="_blank">
+                                        <a :href="carga.link" target="_blank" rel="noopener">
                                             <Tag icon="pi pi-video" severity="Primary" value="Ir a Meet"></Tag>
                                         </a>
                                     </td>
@@ -92,7 +92,7 @@
             </div>
         </div>
         <!-- Calificar Docente -->
-        <Dialog v-model:visible="calificacionDialog" :style="{ width: '700px' }" header="Calificación Docente" :modal="true" position="top" class="fluid bg-info">
+        <Dialog v-model:visible="calificacionDialog" :style="{ width: '700px' }" :breakpoints="{ '768px': 'calc(100vw - 1rem)' }" header="Calificación Docente" :modal="true" position="top" class="calificacion-dialog fluid bg-info">
             <form @submit.prevent="" action="" autocomplete="off">
                 <div class="grid">
                     <div>
@@ -375,17 +375,47 @@ export default {
 </script>
 <style scoped>
 .acordion .curso-nombre {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0px;
-    padding: 11px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 table {
     line-height: 1.8;
 }
 table th {
     float: right;
+}
+
+.curso-detalle {
+    width: 100%;
+}
+
+.curso-detalle th {
+    width: 7rem;
+    padding-right: 0.75rem;
+}
+
+.curso-detalle td {
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 576px) {
+    .cursos-estudiante-panel .acordion {
+        padding: 0;
+    }
+
+    .curso-detalle th {
+        width: 5.75rem;
+        padding-right: 0.5rem;
+        text-align: left;
+    }
+
+    .calificacion-dialog :deep(.grid > .col-3) {
+        width: 40%;
+    }
+
+    .calificacion-dialog :deep(.grid > .col-9) {
+        width: 60%;
+    }
 }
 </style>

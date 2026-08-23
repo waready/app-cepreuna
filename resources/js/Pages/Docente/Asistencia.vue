@@ -8,11 +8,14 @@
                 </div>
             </div>
             <div class="grid">
-                <div class="col-12"><Tag value="Presente" severity="success"></Tag> <Tag value="Tarde" severity="warning"></Tag> <Tag value="Falta" severity="danger"></Tag></div>
+                <div class="attendance-legend col-12"><Tag value="Presente" severity="success"></Tag> <Tag value="Tarde" severity="warning"></Tag> <Tag value="Falta" severity="danger"></Tag></div>
                 <div class="col-12">
                     <vue-cal
-                        class="vuecal--blue-theme"
+                        :key="calendarView"
+                        class="attendance-calendar vuecal--blue-theme"
                         locale="es"
+                        :default-view="calendarView"
+                        :hide-view-selector="mobileCalendar"
                         :disable-views="['years', 'year', 'month']"
                         :time-from="7 * 60"
                         :time-to="22 * 60 + 60"
@@ -51,7 +54,7 @@ import { useToast } from "primevue/usetoast";
 import { Inertia } from "@inertiajs/inertia";
 import { useForm } from "@inertiajs/inertia-vue3";
 
-import { ref, onMounted, watch, toRefs } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, watch, toRefs } from "vue";
 import axios from "axios";
 import VueCal from "vue-cal";
 import "vue-cal/dist/vuecal.css";
@@ -71,10 +74,17 @@ export default {
         // const inicio = ref(0);
         // const fin = ref(0);
         const events = ref([]);
+        const mobileCalendar = ref(window.innerWidth <= 576);
+        const calendarView = computed(() => (mobileCalendar.value ? "day" : "week"));
+        const syncViewport = () => {
+            mobileCalendar.value = window.innerWidth <= 576;
+        };
 
         onMounted(() => {
             getAsistencias();
+            window.addEventListener("resize", syncViewport, { passive: true });
         });
+        onBeforeUnmount(() => window.removeEventListener("resize", syncViewport));
 
         const getAsistencias = () => {
             axios.get(route("docentes.get-asistencias")).then((response) => {
@@ -97,6 +107,8 @@ export default {
             // inicio,
             // fin,
             events,
+            mobileCalendar,
+            calendarView,
             getAsistencias,
             onEventClick,
             showDialog,
@@ -109,4 +121,10 @@ export default {
     },
 };
 </script>
-<style scoped></style>
+<style scoped>
+.attendance-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+</style>

@@ -76,12 +76,9 @@ export default {
 </script>
 <style scoped>
 .acordion .curso-nombre {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0px;
-    padding: 11px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
 }
 table th {
     float: right;

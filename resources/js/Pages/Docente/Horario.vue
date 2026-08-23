@@ -67,10 +67,10 @@
                                 </template> -->
                                 <template #content>
                                     <template v-for="dis in slotProps.item.disponibilidad" :key="dis.hora_inicio">
-                                        <div class="grid border-500 shadow-2 py-1 my-1" v-if="dis.horario!=null" :style="'background:'+dis.horario.curso.color">
-                                            <div class="col-6 md:col-4 pb-0"><Tag icon="pi pi-clock" severity="Info" :value="dis.hora_inicio+' - '+dis.hora_fin"></Tag></div>
-                                            <div class="col-6 md:col-3 pb-0"><Tag severity="warning" :value="'('+dis.horario.grupo+')'"></Tag></div>
-                                            <div class="col-6 md:col-5" >
+                                        <div class="horario-bloque grid border-500 shadow-2 py-1 my-1" v-if="dis.horario!=null" :style="'background:'+dis.horario.curso.color">
+                                            <div class="horario-hora col-6 md:col-4 pb-0"><Tag icon="pi pi-clock" severity="Info" :value="dis.hora_inicio+' - '+dis.hora_fin"></Tag></div>
+                                            <div class="horario-grupo col-6 md:col-3 pb-0"><Tag severity="warning" :value="'('+dis.horario.grupo+')'"></Tag></div>
+                                            <div class="horario-curso col-6 md:col-5" >
                                                 <b>{{dis.horario.curso.denominacion}}</b>
                                             </div>
 
@@ -228,6 +228,32 @@ export default {
 
     .turnos .p-card-body {
         padding: 0.75rem;
+    }
+
+    .turnos .p-timeline-event-content {
+        min-width: 0;
+        padding-left: 0.5rem;
+    }
+
+    .turnos .p-card-content {
+        padding: 0;
+    }
+
+    .horario-bloque {
+        margin-right: 0;
+        margin-left: 0;
+        border-radius: 8px;
+    }
+
+    .horario-hora,
+    .horario-grupo,
+    .horario-curso {
+        width: 100%;
+        padding: 0.35rem 0.5rem;
+    }
+
+    .horario-curso {
+        overflow-wrap: anywhere;
     }
 }
 </style>

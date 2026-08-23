@@ -1,7 +1,7 @@
 <template>
     <Toast />
-    <app-layout :title="title" :mode="2">
-        <div class="card shadow-6">
+    <app-layout :title="title" :mode="2" class="pagos-page">
+        <div class="card shadow-6 pagos-panel">
             <div class="grid hidden sm:flex">
                 <div class="col-12">
                     <h5 class="font-semibold">Pagos</h5>
@@ -426,7 +426,7 @@ import { useToast } from "primevue/usetoast";
 import { Inertia } from "@inertiajs/inertia";
 import { useForm } from "@inertiajs/inertia-vue3";
 
-import { ref, onMounted, watch, toRefs, computed } from "vue";
+import { ref, onMounted, onBeforeUnmount, watch, toRefs, computed } from "vue";
 import axios from "axios";
 
 import AgregarPago from "../../components/Estudiante/AgregarPagoComponent.vue";
@@ -475,7 +475,15 @@ export default {
 
         const usuario = ref();
         // mounted
-        onMounted(() => {});
+        const desktop = ref(window.innerWidth > 1024);
+        const syncViewport = () => {
+            desktop.value = window.innerWidth > 1024;
+        };
+
+        onMounted(() => {
+            window.addEventListener("resize", syncViewport, { passive: true });
+        });
+        onBeforeUnmount(() => window.removeEventListener("resize", syncViewport));
 
         // vouchers
         const vouchers = ref(data.value.vouchers);
@@ -502,7 +510,7 @@ export default {
             return value.charAt(0).toUpperCase() + value.slice(1);
         };
         const isDesktop = () => {
-            return window.innerWidth > 1024;
+            return desktop.value;
         };
         // SUBMIT
         const fields = ref({ tokens: [] });
@@ -568,5 +576,27 @@ export default {
     width: 7rem;
     height: auto;
     font-size: 2rem;
+}
+
+@media (max-width: 576px) {
+    .pagos-panel {
+        overflow: hidden;
+    }
+
+    .pagos-panel :deep(.p-message) {
+        width: 100%;
+        margin-right: 0;
+        margin-left: 0;
+    }
+
+    .pagos-panel :deep(.p-datatable-table) {
+        font-size: 0.86rem;
+    }
+
+    .pagos-panel :deep(.p-datatable-thead > tr > th),
+    .pagos-panel :deep(.p-datatable-tbody > tr > td) {
+        padding: 0.55rem 0.5rem;
+        white-space: nowrap;
+    }
 }
 </style>

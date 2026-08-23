@@ -10,14 +10,15 @@ body {
         radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.13), transparent 24rem),
         radial-gradient(circle at 86% 82%, rgba(11, 93, 135, 0.16), transparent 28rem),
         linear-gradient(120deg, $topbarLeftBgColor, $topbarRightBgColor);
-    height: 100vh;
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 .panel-login-mobile {
     @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
     background-image:
         radial-gradient(circle at 15% 15%, rgba(255, 255, 255, 0.13), transparent 18rem),
         linear-gradient(120deg, $topbarLeftBgColor, $topbarRightBgColor);
-    height: 40vh;
+    height: clamp(18rem, 40svh, 22rem);
     width: 100%;
 }
 .sidebar-header-mobile {
@@ -25,21 +26,82 @@ body {
 }
 .topbar-mobile {
     @include linear-gradient-left($topbarLeftBgColor , $topbarRightBgColor);
-    height: 15vh;
     width: 100%;
-    // z-index: -1;
 }
 @media screen and (max-width: 1024px) {
     .topbar-mobile {
-        position: inherit;
+        position: sticky;
+        top: 0;
+        display: flex;
+        align-items: flex-end;
+        min-height: calc(4.5rem + env(safe-area-inset-top));
+        padding: env(safe-area-inset-top) 0.75rem 0.55rem;
+        z-index: 1000;
+        box-shadow: 0 5px 18px rgba(72, 35, 20, 0.18);
+    }
+    .topbar-mobile-content {
+        width: 100%;
+        min-width: 0;
+        min-height: 3.25rem;
+        flex-wrap: nowrap !important;
+    }
+    .topbar-mobile-title {
+        min-width: 0;
+        padding: 0 0.5rem;
+        overflow: hidden;
+        font-size: 1.05rem;
+        line-height: 1.25;
+        text-align: center;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .topbar-mobile .layout-menu-button {
+        display: inline-flex;
+        width: 2.75rem;
+        height: 2.75rem;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
     }
     .layout-main {
-        padding: 0px 1rem 1rem 1rem;
-        margin-top: -8vh;
-        z-index: 999;
+        width: 100%;
+        min-width: 0;
+        margin-top: 0;
+        padding: 0.875rem 0.875rem calc(1rem + env(safe-area-inset-bottom));
+        z-index: auto;
+    }
+    .layout-main main,
+    .layout-main main > * {
+        min-width: 0;
     }
     .layout-wrapper {
         justify-content: initial;
+        min-width: 0;
+        overflow-x: clip;
+    }
+    .layout-wrapper .layout-sidebar {
+        left: 0;
+        width: min(84vw, 20rem);
+        height: 100vh;
+        height: 100dvh;
+        padding-bottom: env(safe-area-inset-bottom);
+        transform: translateX(-105%);
+        transition: transform $transitionDuration;
+        z-index: 1002;
+    }
+    .layout-wrapper.layout-mobile-sidebar-active .layout-sidebar {
+        left: 0;
+        transform: translateX(0);
+    }
+    .layout-wrapper .layout-mask {
+        position: fixed;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: rgba(20, 29, 36, 0.52);
+        backdrop-filter: blur(2px);
+        z-index: 1001;
     }
     .menu-footer {
         position: fixed !important;
@@ -411,6 +473,13 @@ body {
     background: #ffd7c7;
 }
 
+img,
+video,
+canvas,
+svg {
+    max-width: 100%;
+}
+
 body {
     color: $textColor;
     background-color: $bodyBgColor;
@@ -699,8 +768,20 @@ a {
     }
 
     .layout-main {
-        padding-right: 1rem;
-        padding-left: 1rem;
+        padding-right: 0.625rem;
+        padding-left: 0.625rem;
+    }
+
+    .layout-main > main > .layout-wrapper,
+    .layout-main .card {
+        min-width: 0;
+    }
+
+    .layout-main > main > .card,
+    .layout-main > main > * > .card {
+        padding: 0.875rem;
+        margin-bottom: 0.75rem;
+        border-radius: 12px;
     }
 
     .p-dialog-mask {
@@ -712,6 +793,7 @@ a {
     }
 
     .p-dialog {
+        width: calc(100vw - 1rem) !important;
         max-width: calc(100vw - 1rem);
         max-height: calc(100vh - 1rem);
         max-height: calc(100dvh - 1rem);
@@ -720,6 +802,7 @@ a {
 
     .p-dialog .p-dialog-content {
         padding: 1.25rem 1rem 0.75rem;
+        overflow-x: hidden;
         overscroll-behavior: contain;
     }
 
@@ -737,6 +820,7 @@ a {
     }
 
     .p-dialog .p-dialog-footer .p-button {
+        min-height: 2.75rem;
         margin: 0;
     }
 
@@ -751,6 +835,113 @@ a {
         min-width: 0;
     }
 
+    .p-password,
+    .p-password .p-inputtext,
+    .p-calendar,
+    .p-dropdown,
+    .p-inputnumber,
+    .p-autocomplete {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .p-datatable-wrapper {
+        max-width: 100%;
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .p-datatable.p-datatable-responsive-scroll .p-datatable-table {
+        min-width: 34rem;
+    }
+
+    .p-datatable.p-datatable-responsive-stack .p-datatable-table {
+        min-width: 0;
+    }
+
+    .p-datatable.p-datatable-responsive-stack .p-datatable-tbody > tr > td {
+        gap: 0.75rem;
+        padding: 0.65rem 0.75rem;
+        overflow-wrap: anywhere;
+    }
+
+    .p-datatable.p-datatable-responsive-stack .p-datatable-tbody > tr > td .p-column-title {
+        flex: 0 0 42%;
+        text-align: left;
+    }
+
+    .p-paginator {
+        flex-wrap: wrap;
+        gap: 0.2rem;
+        padding: 0.5rem 0.25rem;
+    }
+
+    .p-paginator .p-paginator-pages {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .p-paginator .p-paginator-page,
+    .p-paginator .p-paginator-first,
+    .p-paginator .p-paginator-prev,
+    .p-paginator .p-paginator-next,
+    .p-paginator .p-paginator-last {
+        min-width: 2.5rem;
+        height: 2.5rem;
+        margin: 0;
+    }
+
+    .p-tabview .p-tabview-nav {
+        overflow-x: auto;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: thin;
+    }
+
+    .p-tabview .p-tabview-nav li .p-tabview-nav-link {
+        white-space: nowrap;
+    }
+
+    .p-dialog-content .grid.mx-4 {
+        margin-right: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    textarea.p-inputtextarea {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .p-button:not(.p-button-icon-only),
+    a.p-button:not(.p-button-icon-only) {
+        min-height: 2.75rem;
+        justify-content: center;
+    }
+
+    .p-button.p-button-sm:not(.p-button-icon-only),
+    a.p-button.p-button-sm:not(.p-button-icon-only) {
+        min-height: 2.5rem;
+    }
+
+    .p-accordion .p-accordion-header .p-accordion-header-link {
+        min-width: 0;
+        padding: 0.9rem 0.75rem;
+    }
+
+    .p-accordion .p-accordion-content {
+        padding: 0.875rem;
+    }
+
+    .vuecal {
+        min-height: 34rem;
+    }
+
+    .vuecal__event-title,
+    .vuecal__event-time {
+        overflow-wrap: anywhere;
+    }
+
     .menu-footer {
         z-index: 1001;
         padding-bottom: env(safe-area-inset-bottom);
@@ -759,5 +950,36 @@ a {
 
     .menu-footer .p-button {
         min-height: 48px;
+    }
+
+    .pagos-page .layout-main {
+        padding-bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    }
+}
+
+@media screen and (max-width: 360px) {
+    .layout-main {
+        padding-right: 0.4rem;
+        padding-left: 0.4rem;
+    }
+
+    .layout-main > main > .card,
+    .layout-main > main > * > .card {
+        padding: 0.7rem;
+    }
+
+    .topbar-mobile {
+        padding-right: 0.4rem;
+        padding-left: 0.4rem;
+    }
+
+    .p-dialog .p-dialog-footer {
+        align-items: stretch;
+        flex-direction: column-reverse;
+    }
+
+    .p-dialog .p-dialog-footer .p-button,
+    .p-dialog .p-dialog-footer a.p-button {
+        width: 100%;
     }
 }

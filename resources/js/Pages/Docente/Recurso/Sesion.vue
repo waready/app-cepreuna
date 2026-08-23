@@ -8,7 +8,7 @@
                 </div>
             </div>
             <Button label="Agregar" class="mb-2 p-button-success" icon="pi pi-plus" @click="nuevo" />
-            <DataTable :value="sesiones" esponsiveLayout="stack" class="p-datatable-sm" :loading="loading"
+            <DataTable :value="sesiones" responsiveLayout="stack" breakpoint="1024px" class="p-datatable-sm sesiones-table" :loading="loading"
                 :paginator="true"
                 :rows="10"
                 paginatorTemplate="CurrentPageReport FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown"
@@ -31,7 +31,7 @@
         </div>
         <!-- <pre>{{ users }}</pre> -->
 
-        <Dialog v-model:visible="sesionDialog" :style="{ width: '500px' }" :header="titulo" :modal="true" position="top" class="bg-info">
+        <Dialog v-model:visible="sesionDialog" :style="{ width: '500px' }" :breakpoints="{ '640px': 'calc(100vw - 1rem)' }" :header="titulo" :modal="true" position="top" class="bg-info">
             <div class="grid mx-4" style="margin-top:-20px">
                 <div class="col-12 md:col-12">
                     <div class="field p-fluid">

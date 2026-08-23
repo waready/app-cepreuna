@@ -1,13 +1,13 @@
 <template>
     <Toast />
     <app-layout :title="title" :mode="2">
-        <div class="card shadow-6">
+        <div class="card shadow-6 cursos-panel">
             <div class="grid hidden sm:flex">
                 <div class="col-12">
                     <h5 class="font-bold">Cursos</h5>
                 </div>
             </div>
-            <DataTable :value="cargas" responsiveLayout="stack" breakpoint="960px" class="p-datatable-sm cursos-table" :loading="loading">
+            <DataTable :value="cargas" responsiveLayout="stack" breakpoint="1024px" class="p-datatable-sm cursos-table" :loading="loading">
                 <template #empty>
                     <div class="py-4 text-center text-600">No hay cursos asignados para el periodo actual.</div>
                 </template>
@@ -64,22 +64,24 @@
                 </Column>
                 <Column field="estado" header="Dirección">
                     <template #body="slotProps">
-                        <Button label="Ver Lugar" class="p-button-sm p-button-warning" icon="pi pi-map-marker" @click="verLugar(slotProps.data)" />
+                        <Button label="Ver Lugar" class="curso-action-button p-button-sm p-button-warning" icon="pi pi-map-marker" @click="verLugar(slotProps.data)" />
                     </template>
                 </Column>
                 <Column field="estado" header="Estudiantes">
                     <template #body="slotProps">
-                        <Button label="Ver Estudiantes" class="p-button-sm p-button-secondary" icon="pi pi-users" @click="getEstudiante(slotProps.data.grupo_aula_id)" />
+                        <Button label="Ver Estudiantes" class="curso-action-button p-button-sm p-button-secondary" icon="pi pi-users" @click="getEstudiante(slotProps.data.grupo_aula_id)" />
                     </template>
                 </Column>
                 <Column field="link" header="Enlace Meet">
                     <template #body="slotProps">
                         <template v-if="slotProps.data.link != null">
-                            <a :href="slotProps.data.link" class="p-button p-component p-button-sm mr-1" target="_blank"><i class="pi pi-video"></i> Ir a Meet</a>
-                            <Button label="Editar Enlace" class="p-button-success p-button-sm" icon="pi pi-pencil" @click="idCarga(slotProps.data.id)" />
+                            <div class="curso-actions">
+                                <a :href="slotProps.data.link" class="p-button p-component p-button-sm" target="_blank" rel="noopener"><i class="pi pi-video mr-2"></i> Ir a Meet</a>
+                                <Button label="Editar Enlace" class="p-button-success p-button-sm" icon="pi pi-pencil" @click="idCarga(slotProps.data.id)" />
+                            </div>
                         </template>
                         <template v-else>
-                            <Button label="Agregar Enlace" class="p-button-info p-button-sm" icon="pi pi-plus" @click="idCarga(slotProps.data.id)" />
+                            <Button label="Agregar Enlace" class="curso-action-button p-button-info p-button-sm" icon="pi pi-plus" @click="idCarga(slotProps.data.id)" />
                         </template>
                     </template>
                 </Column>
@@ -87,7 +89,7 @@
             </DataTable>
         </div>
         <!-- <pre>{{ users }}</pre> -->
-        <Dialog v-model:visible="lugarDialog" :style="{ width: '500px' }" header="Dirección del grupo" position="top" class="bg-info">
+        <Dialog v-model:visible="lugarDialog" :style="{ width: '500px' }" :breakpoints="{ '640px': 'calc(100vw - 1rem)' }" header="Dirección del grupo" position="top" class="bg-info">
             <div class="grid" style="margin-top:-30px">
                 <div class="col-3 pb-0">
                         <p class="m-0 font-bold">Sede:</p>
@@ -121,7 +123,7 @@
                 <Button label="Cerrar" icon="pi pi-times" @click="closeBasic" class="p-button-secondary p-button-sm md:p-button"/>
             </template>
         </Dialog>
-        <Dialog v-model:visible="estudianteDialog" header="Lista de Estudiantes" :style="{ width: '400px' }" position="top" :modal="true" :contentStyle="{height: '500px'}">
+        <Dialog v-model:visible="estudianteDialog" header="Lista de Estudiantes" :style="{ width: '640px' }" :breakpoints="{ '640px': 'calc(100vw - 1rem)' }" position="top" :modal="true" :contentStyle="{ maxHeight: '60vh' }">
             <div class="grid" style="margin-top:-30px">
                 <DataTable :value="estudiantes"
                     responsiveLayout="scroll"
@@ -145,7 +147,7 @@
             </template>
         </Dialog>
 
-        <Dialog v-model:visible="enlaceDialog" :style="{ width: '500px' }" header="Link Meet"  :modal="true" position="top" class="bg-info">
+        <Dialog v-model:visible="enlaceDialog" :style="{ width: '500px' }" :breakpoints="{ '640px': 'calc(100vw - 1rem)' }" header="Link Meet"  :modal="true" position="top" class="bg-info">
             <div class="grid mx-4">
                 <div class="col-12 md:col-12">
                     <div class="field grid p-fluid">
@@ -391,7 +393,13 @@ export default {
     font-size: 0.85rem;
 }
 
-@media (max-width: 960px) {
+.curso-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+@media (max-width: 1024px) {
     .cursos-table .p-datatable-tbody > tr > td {
         align-items: flex-start;
     }
@@ -399,6 +407,22 @@ export default {
     .contacto-persona {
         min-width: 0;
         text-align: right;
+    }
+
+    .curso-actions,
+    .curso-action-button,
+    .curso-actions .p-button {
+        width: 100%;
+    }
+
+    .curso-actions {
+        justify-content: stretch;
+    }
+
+    .cursos-table .p-datatable-tbody > tr {
+        border: 1px solid var(--surface-border);
+        border-radius: 10px;
+        box-shadow: 0 4px 14px rgba(24, 39, 56, 0.07);
     }
 }
 </style>

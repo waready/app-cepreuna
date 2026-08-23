@@ -5,9 +5,9 @@
     <!-- </div -->
     <div :class="containerClass" @click="onWrapperClick">
         <!-- <app-top-bar @menu-toggle="onMenuToggle" class="hidden md:flex" /> -->
-        <app-top-bar v-if="topbar == 1" @menu-toggle="onMenuToggle" />
-        <app-top-bar-mobile v-if="topbar == 2 && mode == 2" :title="title" @menu-toggle="onMenuToggle" />
-        <app-top-bar-social v-if="topbar == 2 && mode == 1" @menu-toggle="onMenuToggle" />
+        <app-top-bar v-if="!isMobileViewport" @menu-toggle="onMenuToggle" />
+        <app-top-bar-mobile v-else-if="mode == 2" :title="title" @menu-toggle="onMenuToggle" />
+        <app-top-bar-social v-else @menu-toggle="onMenuToggle" />
 
         <transition name="layout-sidebar">
             <div :class="sidebarClass" @click="onSidebarClick" v-show="isSidebarVisible()">
@@ -15,6 +15,7 @@
                 <app-menu :model="menu" @menuitem-click="onMenuItemClick" />
             </div>
         </transition>
+        <div v-if="mobileMenuActive" class="layout-mask" aria-hidden="true" @click.stop="closeMobileMenu"></div>
 
         <div class="layout-main">
             <!-- Page Content -->
@@ -59,7 +60,7 @@ export default {
     },
     data() {
         return {
-            topbar: 1,
+            isMobileViewport: window.innerWidth <= 1024,
             showingNavigationDropdown: false,
             layoutMode: "static",
             layoutColorMode: "light",
@@ -293,6 +294,10 @@ export default {
             this.menuActive = false;
             this.$toast.removeAllGroups();
         },
+        mobileMenuActive(active) {
+            if (active) this.addClass(document.body, "body-overflow-hidden");
+            else this.removeClass(document.body, "body-overflow-hidden");
+        },
     },
 
     methods: {
@@ -320,7 +325,7 @@ export default {
 
             this.menuClick = false;
         },
-        onMenuToggle() {
+        onMenuToggle(event) {
             this.menuClick = true;
 
             if (this.isDesktop()) {
@@ -338,7 +343,11 @@ export default {
                 this.mobileMenuActive = !this.mobileMenuActive;
             }
 
-            event.preventDefault();
+            event?.preventDefault();
+        },
+        closeMobileMenu() {
+            this.mobileMenuActive = false;
+            this.menuClick = false;
         },
         onSidebarClick() {
             this.menuClick = true;
@@ -364,10 +373,18 @@ export default {
             else element.className = element.className.replace(new RegExp("(^|\\b)" + className.split(" ").join("|") + "(\\b|$)", "gi"), " ");
         },
         isDesktop() {
-            return window.innerWidth > 1024;
+            return !this.isMobileViewport;
         },
         isMobile() {
-            return window.innerWidth < 1024;
+            return this.isMobileViewport;
+        },
+        syncViewport() {
+            const wasMobile = this.isMobileViewport;
+            this.isMobileViewport = window.innerWidth <= 1024;
+
+            if (wasMobile && !this.isMobileViewport) {
+                this.closeMobileMenu();
+            }
         },
         isSidebarVisible() {
             if (this.isDesktop()) {
@@ -450,19 +467,16 @@ export default {
             return this.layoutColorMode === "dark" ? "/assets/layout/images/logo-white.svg" : "/assets/layout/images/logo.svg";
         },
     },
-    beforeUpdate() {
-        if (this.mobileMenuActive) this.addClass(document.body, "body-overflow-hidden");
-        else this.removeClass(document.body, "body-overflow-hidden");
-    },
     mounted() {
         this.changeToSpanish();
-        if (this.isMobile()) {
-            this.topbar = 2;
-        } else {
-            this.topbar = 1;
-        }
+        this.syncViewport();
+        window.addEventListener("resize", this.syncViewport, { passive: true });
         // console.log(route().current());
         // console.log(route())
+    },
+    beforeUnmount() {
+        window.removeEventListener("resize", this.syncViewport);
+        this.removeClass(document.body, "body-overflow-hidden");
     },
 };
 </script>

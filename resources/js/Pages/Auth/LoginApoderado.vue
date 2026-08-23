@@ -1,7 +1,7 @@
 <template>
     <Toast />
-    <div class="sm:flex flex-column align-items-center panel-login">
-        <Card style="margin-top: 10px; width: 40rem" class="">
+    <div class="guardian-login-page sm:flex flex-column align-items-center panel-login">
+        <Card class="guardian-login-card" style="margin-top: 10px; width: 40rem">
             <template #header>
                 <div class="layout-logo text-center">
                     <img class="mt-2" alt="logo" src="/assets/layout/images/logo.png" style="height: 30px; width: auto" />
@@ -263,6 +263,24 @@ export default {
 @media screen and (max-width: 576px) {
     .display-mobile {
         display: flex !important;
+    }
+
+    .guardian-login-page {
+        display: flex;
+        width: 100%;
+        min-height: 100vh;
+        min-height: 100dvh;
+        padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+    }
+
+    .guardian-login-card {
+        width: 100% !important;
+        max-width: 40rem;
+        margin: 0 !important;
+    }
+
+    .guardian-login-card :deep(.col-6) {
+        width: 100%;
     }
 }
 </style>

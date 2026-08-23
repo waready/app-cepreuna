@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="file-input-control">
         <div class="p-inputgroup">
             <InputText type="text" v-model="FileName" readonly />
             <label class="custom-file-upload p-button buttonFileStyle">
@@ -183,5 +183,42 @@ export default defineComponent({
     background: #ced4da;
     border: 1px solid #ced4da;
     color: var(--text-color);
+}
+
+.file-input-control,
+.file-input-control .p-inputgroup {
+    min-width: 0;
+}
+
+.buttonFileStyle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.file-input-control :deep(.p-inputtext) {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@media (max-width: 360px) {
+    .file-input-control .p-inputgroup {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .file-input-control :deep(.p-inputtext),
+    .buttonFileStyle {
+        width: 100%;
+        border-radius: 6px;
+    }
+
+    .buttonFileStyle {
+        min-height: 2.75rem;
+        margin-top: 0.5rem;
+    }
 }
 </style>

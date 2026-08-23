@@ -13,7 +13,7 @@
 </template>
 
 <script>
-import { onMounted, provide, ref, toRef } from "vue";
+import { onMounted, onBeforeUnmount, provide, ref, toRef } from "vue";
 export default {
     props: {
         notificacion: {
@@ -29,10 +29,10 @@ export default {
         const nofitication = toRef(props, "notificacion");
         const tabs = ref(slots.default().map((tab) => tab.props));
         const selectedTitle = ref(tabs.value[0].title);
-        const isMobile = () => {
-            return window.innerWidth < 1024;
+        const showTitle = ref(window.innerWidth > 1024);
+        const syncViewport = () => {
+            showTitle.value = window.innerWidth > 1024;
         };
-        const showTitle = ref(false);
         const refreshNotificacion = (title) => {
             if (title === "Notificaciones") {
                 getAlertNotificaciones();
@@ -47,14 +47,12 @@ export default {
             });
         };
         onMounted(() => {
-            if (isMobile()) {
-                showTitle.value = false;
-            } else {
-                showTitle.value = true;
-            }
+            syncViewport();
+            window.addEventListener("resize", syncViewport, { passive: true });
             // console.log(route().current());
             // console.log(route())
         });
+        onBeforeUnmount(() => window.removeEventListener("resize", syncViewport));
         provide("selectedTitle", selectedTitle);
         // provide("alertItem", alertItem);
         return {
@@ -109,6 +107,17 @@ export default {
 .tabs__header li.selected span {
     font-size: 15px;
     font-weight: bold;
+}
+
+@media (max-width: 576px) {
+    .tabs__header {
+        margin-bottom: 0.5rem;
+    }
+
+    .tabs__header li {
+        min-width: 0;
+        padding: 0.75rem 0.5rem;
+    }
 }
 // .tabs__header li i .p-badge{
 //     min-width: 0.5rem !important;
