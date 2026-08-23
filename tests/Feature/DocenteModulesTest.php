@@ -40,6 +40,11 @@ class DocenteModulesTest extends TestCase
         }
     }
 
+    public function test_sanctum_reconoce_la_sesion_del_docente()
+    {
+        $this->assertContains('docente', config('sanctum.guard'));
+    }
+
     public function test_el_scope_de_carga_filtra_docente_y_periodo()
     {
         $query = CargaAcademica::query()->delDocenteEnPeriodo(52, 9);
