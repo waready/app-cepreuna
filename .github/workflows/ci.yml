@@ -26,7 +26,13 @@ jobs:
           coverage: none
 
       - name: Preparar archivo de entorno
-        run: cp .env.example .env
+        run: |
+          mkdir -p storage/app/public
+          mkdir -p storage/framework/cache/data
+          mkdir -p storage/framework/sessions
+          mkdir -p storage/framework/views
+          mkdir -p storage/logs
+          cp .env.example .env
 
       - name: Instalar dependencias PHP
         run: composer install --no-interaction --prefer-dist --no-scripts
