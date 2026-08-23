@@ -59,7 +59,7 @@ class DocenteModulesTest extends TestCase
         $this->assertSame([52, 9], $query->getBindings());
     }
 
-    public function test_la_cuenta_docente_exige_inscripcion_y_carga_del_periodo_activo()
+    public function test_la_cuenta_docente_exige_inscripcion_apta_sin_exigir_carga_del_periodo_activo()
     {
         $query = DocenteApto::query()->habilitadoEnPeriodo(10);
 
@@ -69,9 +69,8 @@ class DocenteModulesTest extends TestCase
         $this->assertStringContainsString('`inscripcion_docentes` as `inscripcion_actual`', $sql);
         $this->assertStringContainsString('`inscripcion_actual`.`periodos_id` = ?', $sql);
         $this->assertStringContainsString('`inscripcion_actual`.`apto` = ?', $sql);
-        $this->assertStringContainsString('`carga_academicas` as `carga_actual`', $sql);
-        $this->assertStringContainsString('`carga_actual`.`periodos_id` = ?', $sql);
-        $this->assertSame(['1', '1', '1', 10, '1', '1', 10, '1'], $query->getBindings());
+        $this->assertStringNotContainsString('`carga_academicas` as `carga_actual`', $sql);
+        $this->assertSame(['1', '1', '1', 10, '1', '1'], $query->getBindings());
     }
 
     public function test_solo_la_cuenta_mas_reciente_del_docente_puede_autenticarse()
@@ -85,8 +84,8 @@ class DocenteModulesTest extends TestCase
         $this->assertStringContainsString('MAX(cuenta_periodo.periodos_id)', $sql);
         $this->assertStringContainsString('MAX(cuenta_vigente.id)', $sql);
         $this->assertStringContainsString('`docentes`.`usuario` = ?', $sql);
-        $this->assertSame('docente@cepreuna.edu.pe', $query->getBindings()[8]);
-        $this->assertSame('clave', $query->getBindings()[9]);
+        $this->assertSame('docente@cepreuna.edu.pe', $query->getBindings()[6]);
+        $this->assertSame('clave', $query->getBindings()[7]);
     }
 
     public function test_el_control_de_periodo_docente_se_aplica_a_todas_las_rutas_web()

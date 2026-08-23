@@ -77,13 +77,6 @@ class DocenteApto extends Authenticatable implements Auditable
                     ->where('inscripcion_actual.periodos_id', $periodoId)
                     ->where('inscripcion_actual.apto', '1')
                     ->where('inscripcion_actual.estado', '1');
-            })
-            ->whereExists(function ($carga) use ($docenteColumn, $periodoId) {
-                $carga->selectRaw('1')
-                    ->from('carga_academicas as carga_actual')
-                    ->whereColumn('carga_actual.docentes_id', $docenteColumn)
-                    ->where('carga_actual.periodos_id', $periodoId)
-                    ->where('carga_actual.estado', '1');
             });
     }
 
