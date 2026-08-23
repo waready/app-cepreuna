@@ -23,7 +23,7 @@ class AsistenciaController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = Auth::guard('docente')->user();
 
-        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
+        if (!$periodo || !$docenteApto || !$docenteApto->estaHabilitadoEnPeriodo($periodo->id)) {
             return response()->json(['asistencias' => []]);
         }
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Turno;
 use App\Models\PlantillaHorario;
 use App\Models\Periodo;
+use App\Services\GrupoAulaContactService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -65,8 +66,9 @@ class HorarioController extends Controller
         $docenteApto = Auth::guard('docente')->user();
         $horario = [];
 
-        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
+        if (!$periodo || !$docenteApto || !$docenteApto->estaHabilitadoEnPeriodo($periodo->id)) {
             $response["horario"] = $horario;
+            $response["contactos"] = [];
             return response()->json($response);
         }
 
@@ -92,6 +94,7 @@ class HorarioController extends Controller
             $plantillasPorTurno[$plantilla->turnos_id][] = $plantilla;
         }
 
+        $horarios = collect();
         $horariosPorClave = [];
         if ($plantillas->isNotEmpty()) {
             $horarios = DB::table("horarios as h")
@@ -99,6 +102,7 @@ class HorarioController extends Controller
                     "h.id",
                     "h.plantilla_horarios_id",
                     "h.dia",
+                    "ga.id as grupo_aula_id",
                     "g.denominacion as grupo",
                     "c.denominacion as curso_denominacion",
                     "c.color as curso_color"
@@ -124,6 +128,7 @@ class HorarioController extends Controller
 
                 $horarioItem = new \stdClass;
                 $horarioItem->id = $item->id;
+                $horarioItem->grupo_aula_id = $item->grupo_aula_id;
                 $horarioItem->grupo = $item->grupo;
                 $horarioItem->curso = (object) [
                     "denominacion" => $item->curso_denominacion,
@@ -137,6 +142,25 @@ class HorarioController extends Controller
         foreach ($turnos as $turno) {
             $horario[] = $this->construirTurnoHorario($turno, $dias, $plantillasPorTurno, $horariosPorClave);
         }
+
+        $contactosPorGrupo = app(GrupoAulaContactService::class)->obtener(
+            $horarios->pluck('grupo_aula_id')->all(),
+            (int) $periodo->id
+        );
+
+        $response["contactos"] = $horarios
+            ->unique('grupo_aula_id')
+            ->map(function ($item) use ($contactosPorGrupo) {
+                $contactos = $contactosPorGrupo->get((int) $item->grupo_aula_id, []);
+
+                return [
+                    'grupo_aula_id' => (int) $item->grupo_aula_id,
+                    'grupo' => $item->grupo,
+                    'auxiliar' => $contactos['auxiliar'] ?? null,
+                    'coordinador' => $contactos['coordinador'] ?? null,
+                ];
+            })
+            ->values();
         $response["horario"] = $horario;
         return response()->json($response);
     }

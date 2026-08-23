@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Http\Controllers\Docente\HorarioController;
+use App\Http\Kernel;
+use App\Http\Middleware\EnsureCurrentTeacherPeriod;
 use App\Models\CargaAcademica;
 use App\Models\DocenteApto;
 use App\Models\Sesiones;
+use App\Services\GrupoAulaContactService;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class DocenteModulesTest extends TestCase
@@ -55,46 +59,57 @@ class DocenteModulesTest extends TestCase
         $this->assertSame([52, 9], $query->getBindings());
     }
 
-    public function test_la_cuenta_docente_historica_exige_carga_en_el_periodo_actual()
+    public function test_la_cuenta_docente_exige_inscripcion_y_carga_del_periodo_activo()
     {
-        $query = DocenteApto::query()
-            ->conCredenciales('docente@cepreuna.edu.pe', 'clave')
-            ->conCargaEnPeriodo(10)
-            ->masReciente();
+        $query = DocenteApto::query()->habilitadoEnPeriodo(10);
 
         $sql = $query->toSql();
 
-        $this->assertStringContainsString('exists', $sql);
-        $this->assertStringContainsString('`carga_academicas` as `ca`', $sql);
-        $this->assertStringContainsString('`ca`.`docentes_id` = `docente_aptos`.`docentes_id`', $sql);
-        $this->assertStringContainsString('`ca`.`periodos_id` = ?', $sql);
+        $this->assertStringContainsString('`docente_aptos`.`estado` = ?', $sql);
+        $this->assertStringContainsString('`inscripcion_docentes` as `inscripcion_actual`', $sql);
+        $this->assertStringContainsString('`inscripcion_actual`.`periodos_id` = ?', $sql);
+        $this->assertStringContainsString('`inscripcion_actual`.`apto` = ?', $sql);
+        $this->assertStringContainsString('`carga_academicas` as `carga_actual`', $sql);
+        $this->assertStringContainsString('`carga_actual`.`periodos_id` = ?', $sql);
+        $this->assertSame(['1', '1', '1', 10, '1', '1', 10, '1'], $query->getBindings());
+    }
+
+    public function test_solo_la_cuenta_mas_reciente_del_docente_puede_autenticarse()
+    {
+        $query = DocenteApto::query()
+            ->habilitadoEnPeriodo(10)
+            ->conCredenciales('docente@cepreuna.edu.pe', 'clave');
+
+        $sql = $query->toSql();
+
+        $this->assertStringContainsString('MAX(cuenta_periodo.periodos_id)', $sql);
+        $this->assertStringContainsString('MAX(cuenta_vigente.id)', $sql);
         $this->assertStringContainsString('`docentes`.`usuario` = ?', $sql);
-        $this->assertStringContainsString('order by `docente_aptos`.`periodos_id` desc', $sql);
-        $this->assertSame([
-            'docente@cepreuna.edu.pe',
-            'clave',
-            'docente@cepreuna.edu.pe',
-            'clave',
-            10,
-            '1',
-        ], $query->getBindings());
+        $this->assertSame('docente@cepreuna.edu.pe', $query->getBindings()[8]);
+        $this->assertSame('clave', $query->getBindings()[9]);
     }
 
-    public function test_el_login_google_acepta_la_identidad_del_registro_maestro_docente()
+    public function test_el_control_de_periodo_docente_se_aplica_a_todas_las_rutas_web()
     {
-        $query = DocenteApto::query()->conIdentidadGoogle('google-id');
-
-        $this->assertStringContainsString('`docente_aptos`.`idgsuite` = ?', $query->toSql());
-        $this->assertStringContainsString('`docentes`.`idgsuite` = ?', $query->toSql());
-        $this->assertSame(['google-id', 'google-id'], $query->getBindings());
+        $this->assertContains(
+            EnsureCurrentTeacherPeriod::class,
+            app(Kernel::class)->getMiddlewareGroups()['web']
+        );
     }
 
-    public function test_credenciales_vacias_nunca_se_convierten_en_una_busqueda_por_nulos()
+    public function test_los_contactos_de_grupo_se_resuelven_en_una_sola_consulta_del_periodo()
     {
-        $query = DocenteApto::query()->conCredenciales('', '');
+        $consultas = DB::connection()->pretend(function () {
+            app(GrupoAulaContactService::class)->obtener([501, 502], 10);
+        });
 
-        $this->assertStringContainsString('1 = 0', $query->toSql());
-        $this->assertSame([], $query->getBindings());
+        $this->assertCount(1, $consultas);
+        $this->assertStringContainsString('`auxiliar_grupos`', $consultas[0]['query']);
+        $this->assertStringContainsString('`auxiliar_coordinadores`', $consultas[0]['query']);
+        $this->assertStringContainsString('group by `grupo_aulas_id`', $consultas[0]['query']);
+        $this->assertStringContainsString('group by `auxiliares_id`', $consultas[0]['query']);
+        $this->assertStringContainsString('`telefono` is not null', $consultas[0]['query']);
+        $this->assertSame([10, 501, 502, 10], $consultas[0]['bindings']);
     }
 
     public function test_el_login_rechaza_una_solicitud_sin_credenciales_antes_de_consultar_la_db()

@@ -68,9 +68,8 @@ class LoginGoogleController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = $periodo
             ? DocenteApto::query()
+                ->habilitadoEnPeriodo($periodo->id)
                 ->conIdentidadGoogle($user->id)
-                ->conCargaEnPeriodo($periodo->id)
-                ->masReciente()
                 ->first()
             : null;
         $estudiante = Estudiante::where('idgsuite', $user->id)->first();
@@ -147,9 +146,8 @@ class LoginGoogleController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = $periodo
             ? DocenteApto::query()
+                ->habilitadoEnPeriodo($periodo->id)
                 ->conCredenciales($credenciales['email'], $credenciales['password'])
-                ->conCargaEnPeriodo($periodo->id)
-                ->masReciente()
                 ->first()
             : null;
         $estudiante = Estudiante::where([

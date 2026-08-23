@@ -7,14 +7,51 @@
                     <h5 class="font-bold">Cursos</h5>
                 </div>
             </div>
-            <DataTable :value="cargas" esponsiveLayout="stack" class="p-datatable-sm" :loading="loading">
+            <DataTable :value="cargas" responsiveLayout="stack" breakpoint="960px" class="p-datatable-sm cursos-table" :loading="loading">
+                <template #empty>
+                    <div class="py-4 text-center text-600">No hay cursos asignados para el periodo actual.</div>
+                </template>
                 <Column field="curso" header="Curso"></Column>
                 <Column field="tipo" header="Tipo">
                     <template #body="slotProps">
-                        <span>{{slotProps.data.tipo=='1'?'Titula':'Remplazo'}}</span>
+                        <span>{{ slotProps.data.tipo == '1' ? 'Titular' : 'Reemplazo' }}</span>
                     </template>
                 </Column>
                 <Column field="grupo" header="Grupo"></Column>
+                <Column header="Auxiliar">
+                    <template #body="slotProps">
+                        <div v-if="slotProps.data.auxiliar" class="contacto-persona">
+                            <span class="contacto-nombre">{{ slotProps.data.auxiliar.nombre }}</span>
+                            <a
+                                v-if="slotProps.data.auxiliar.telefono"
+                                class="contacto-telefono"
+                                :href="telefonoHref(slotProps.data.auxiliar.telefono)"
+                            >
+                                <i class="pi pi-phone"></i>
+                                {{ slotProps.data.auxiliar.telefono }}
+                            </a>
+                            <span v-else class="contacto-sin-telefono">No registrado</span>
+                        </div>
+                        <span v-else class="contacto-pendiente">Por asignar</span>
+                    </template>
+                </Column>
+                <Column header="Coordinador">
+                    <template #body="slotProps">
+                        <div v-if="slotProps.data.coordinador" class="contacto-persona">
+                            <span class="contacto-nombre">{{ slotProps.data.coordinador.nombre }}</span>
+                            <a
+                                v-if="slotProps.data.coordinador.telefono"
+                                class="contacto-telefono"
+                                :href="telefonoHref(slotProps.data.coordinador.telefono)"
+                            >
+                                <i class="pi pi-phone"></i>
+                                {{ slotProps.data.coordinador.telefono }}
+                            </a>
+                            <span v-else class="contacto-sin-telefono">No registrado</span>
+                        </div>
+                        <span v-else class="contacto-pendiente">Por asignar</span>
+                    </template>
+                </Column>
                 <Column field="estado" header="Estado">
                     <template #body="slotProps">
                         <template v-if="slotProps.data.estado=='1'">
@@ -167,10 +204,23 @@ export default {
                     // },
                 })
                 .then((response) => {
+                    cargas.value = response.data.carga || [];
+                })
+                .catch(() => {
+                    cargas.value = [];
+                    toast.add({
+                        severity: "error",
+                        summary: "No se pudieron cargar los cursos",
+                        detail: "Intente nuevamente en unos momentos.",
+                        life: 5000,
+                    });
+                })
+                .finally(() => {
                     loading.value = false;
-                    // this.grupo = response.data[0].id;
-                    cargas.value = response.data.carga;
                 });
+        };
+        const telefonoHref = (telefono) => {
+            return "tel:" + String(telefono).replace(/[^\d+]/g, "");
         };
         const lugarDialog = ref(false);
         const lugar = ref({
@@ -300,7 +350,8 @@ export default {
             saveEnlace,
             loading,
             json_fields,
-            json_data
+            json_data,
+            telefonoHref,
         };
     },
 };
@@ -309,5 +360,45 @@ export default {
 .turnos .p-timeline-event-opposite{
     min-width: 40px !important;
     flex: 0;
+}
+
+.contacto-persona {
+    display: flex;
+    min-width: 11rem;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+
+.contacto-nombre {
+    color: #263238;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.contacto-telefono {
+    color: #b74816;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.contacto-telefono:hover {
+    text-decoration: underline;
+}
+
+.contacto-sin-telefono,
+.contacto-pendiente {
+    color: #78909c;
+    font-size: 0.85rem;
+}
+
+@media (max-width: 960px) {
+    .cursos-table .p-datatable-tbody > tr > td {
+        align-items: flex-start;
+    }
+
+    .contacto-persona {
+        min-width: 0;
+        text-align: right;
+    }
 }
 </style>

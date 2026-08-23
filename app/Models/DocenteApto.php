@@ -6,6 +6,7 @@ namespace App\Models;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use OwenIt\Auditing\Contracts\Auditable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -56,17 +57,56 @@ class DocenteApto extends Authenticatable implements Auditable
         );
     }
 
-    public function scopeConCargaEnPeriodo($query, $periodoId)
+    public function scopeHabilitadoEnPeriodo($query, $periodoId = null)
     {
+        $periodoId = $periodoId ?: optional(Periodo::actual())->id;
+
+        if (!$periodoId) {
+            return $query->whereRaw('1 = 0');
+        }
+
         $docenteColumn = $query->getModel()->qualifyColumn('docentes_id');
 
-        return $query->whereExists(function ($carga) use ($docenteColumn, $periodoId) {
-            $carga->selectRaw('1')
-                ->from('carga_academicas as ca')
-                ->whereColumn('ca.docentes_id', $docenteColumn)
-                ->where('ca.periodos_id', $periodoId)
-                ->where('ca.estado', '1');
-        });
+        return $query
+            ->where($query->getModel()->qualifyColumn('estado'), '1')
+            ->cuentaVigente()
+            ->whereExists(function ($inscripcion) use ($docenteColumn, $periodoId) {
+                $inscripcion->selectRaw('1')
+                    ->from('inscripcion_docentes as inscripcion_actual')
+                    ->whereColumn('inscripcion_actual.docentes_id', $docenteColumn)
+                    ->where('inscripcion_actual.periodos_id', $periodoId)
+                    ->where('inscripcion_actual.apto', '1')
+                    ->where('inscripcion_actual.estado', '1');
+            })
+            ->whereExists(function ($carga) use ($docenteColumn, $periodoId) {
+                $carga->selectRaw('1')
+                    ->from('carga_academicas as carga_actual')
+                    ->whereColumn('carga_actual.docentes_id', $docenteColumn)
+                    ->where('carga_actual.periodos_id', $periodoId)
+                    ->where('carga_actual.estado', '1');
+            });
+    }
+
+    public function scopeCuentaVigente($query)
+    {
+        $model = $query->getModel();
+
+        $ultimosPeriodos = DB::table('docente_aptos as cuenta_periodo')
+            ->selectRaw('cuenta_periodo.docentes_id, MAX(cuenta_periodo.periodos_id) as periodos_id')
+            ->where('cuenta_periodo.estado', '1')
+            ->groupBy('cuenta_periodo.docentes_id');
+
+        $cuentasVigentes = DB::query()
+            ->fromSub($ultimosPeriodos, 'ultimo_periodo')
+            ->join('docente_aptos as cuenta_vigente', function ($join) {
+                $join->on('cuenta_vigente.docentes_id', '=', 'ultimo_periodo.docentes_id')
+                    ->on('cuenta_vigente.periodos_id', '=', 'ultimo_periodo.periodos_id');
+            })
+            ->where('cuenta_vigente.estado', '1')
+            ->selectRaw('MAX(cuenta_vigente.id)')
+            ->groupBy('cuenta_vigente.docentes_id');
+
+        return $query->whereIn($model->qualifyColumn('id'), $cuentasVigentes);
     }
 
     public function scopeConCredenciales($query, $usuario, $password)
@@ -108,22 +148,15 @@ class DocenteApto extends Authenticatable implements Auditable
         });
     }
 
-    public function scopeMasReciente($query)
+    public function estaHabilitadoEnPeriodo($periodoId): bool
     {
-        return $query
-            ->orderByDesc($query->getModel()->qualifyColumn('periodos_id'))
-            ->orderByDesc($query->getModel()->qualifyColumn('id'));
-    }
-
-    public function tieneCargaEnPeriodo($periodoId): bool
-    {
-        if (!$periodoId || !$this->docentes_id) {
+        if (!$periodoId || !$this->getKey()) {
             return false;
         }
 
-        return CargaAcademica::query()
-            ->delDocenteEnPeriodo($this->docentes_id, $periodoId)
-            ->where('estado', '1')
+        return static::query()
+            ->whereKey($this->getKey())
+            ->habilitadoEnPeriodo($periodoId)
             ->exists();
     }
 

@@ -8,6 +8,7 @@ use App\Models\Curricula;
 use App\Models\CurriculaDetalle;
 use App\Models\Periodo;
 use App\Models\Sesiones;
+use App\Services\GrupoAulaContactService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -65,6 +66,17 @@ class CursosController extends Controller
             ->orderBy('c.denominacion')
             ->orderBy('g.denominacion')
             ->get();
+
+        $contactosPorGrupo = app(GrupoAulaContactService::class)->obtener(
+            $cargaAcademica->pluck('grupo_aula_id')->all(),
+            (int) $periodo->id
+        );
+
+        $cargaAcademica->each(function ($carga) use ($contactosPorGrupo) {
+            $contactos = $contactosPorGrupo->get((int) $carga->grupo_aula_id, []);
+            $carga->auxiliar = $contactos['auxiliar'] ?? null;
+            $carga->coordinador = $contactos['coordinador'] ?? null;
+        });
 
         // $response['docente'] = Docente::with('tipoDocumento','gradoAcademico','programa')->find($docenteApto->docentes_id);
         $response['carga'] = $cargaAcademica;
@@ -531,7 +543,7 @@ class CursosController extends Controller
         $periodo = Periodo::actual();
         $docenteApto = Auth::guard('docente')->user();
 
-        if (!$periodo || !$docenteApto || !$docenteApto->tieneCargaEnPeriodo($periodo->id)) {
+        if (!$periodo || !$docenteApto || !$docenteApto->estaHabilitadoEnPeriodo($periodo->id)) {
             return null;
         }
 

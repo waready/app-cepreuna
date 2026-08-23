@@ -76,7 +76,7 @@ class PerfilController extends Controller
             $periodo
                 && $docenteApto
                 && $docenteApto->docente
-                && $docenteApto->tieneCargaEnPeriodo($periodo->id),
+                && $docenteApto->estaHabilitadoEnPeriodo($periodo->id),
             403
         );
 
