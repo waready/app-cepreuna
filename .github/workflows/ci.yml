@@ -9,6 +9,11 @@ on:
 jobs:
   test-and-build:
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      CACHE_DRIVER: array
+      SESSION_DRIVER: array
     steps:
       - name: Descargar codigo
         uses: actions/checkout@v4
@@ -25,9 +30,6 @@ jobs:
 
       - name: Instalar dependencias PHP
         run: composer install --no-interaction --prefer-dist --no-scripts
-
-      - name: Generar clave de Laravel
-        run: php artisan key:generate --ansi --verbose
 
       - name: Descubrir paquetes de Laravel
         run: php artisan package:discover --ansi --verbose
