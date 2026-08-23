@@ -110,9 +110,10 @@ class DocenteModulesTest extends TestCase
         $query = Sesiones::query()->delDocenteEnPeriodo(52, 9);
 
         $this->assertStringContainsString('exists', $query->toSql());
+        $this->assertStringContainsString('`sesiones`.`periodos_id` = ?', $query->toSql());
         $this->assertStringContainsString('`carga_academicas`.`docentes_id` = ?', $query->toSql());
         $this->assertStringContainsString('`carga_academicas`.`periodos_id` = ?', $query->toSql());
-        $this->assertSame([52, 9], $query->getBindings());
+        $this->assertSame([9, 52, 9], $query->getBindings());
     }
 
     public function test_el_horario_conserva_todos_los_bloques_y_solo_asigna_el_que_corresponde()

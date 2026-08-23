@@ -11,9 +11,11 @@ class Sesiones extends Model implements Auditable
 
     public function scopeDelDocenteEnPeriodo($query, $docenteId, $periodoId)
     {
-        return $query->whereHas('carga', function ($query) use ($docenteId, $periodoId) {
-            $query->delDocenteEnPeriodo($docenteId, $periodoId);
-        });
+        return $query
+            ->where($this->qualifyColumn('periodos_id'), $periodoId)
+            ->whereHas('carga', function ($query) use ($docenteId, $periodoId) {
+                $query->delDocenteEnPeriodo($docenteId, $periodoId);
+            });
     }
 
     public function carga(){

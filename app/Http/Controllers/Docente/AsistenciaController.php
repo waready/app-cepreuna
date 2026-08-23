@@ -44,6 +44,7 @@ class AsistenciaController extends Controller
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
             ->where('ad.docentes_id', $docenteApto->docentes_id)
+            ->where('ad.periodos_id', $periodo->id)
             ->where('ca.periodos_id', $periodo->id)
             ->where('ca.estado', '1')
             ->orderBy('ad.fecha')

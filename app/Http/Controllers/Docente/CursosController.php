@@ -333,6 +333,7 @@ class CursosController extends Controller
             ->join('grupos as g', 'g.id', 'ga.grupos_id');
 
         $data = $data
+            ->where('sesiones.periodos_id', $periodo->id)
             ->where('ca.docentes_id', $docenteApto->docentes_id)
             ->where('ca.periodos_id', $periodo->id)
             ->where('ca.estado', '1');
@@ -407,6 +408,7 @@ class CursosController extends Controller
             $data->tema = $request->tema;
             $data->fecha = $fechaFormat;
             $data->carga_academicas_id = $carga->id;
+            $data->periodos_id = $periodo->id;
             $data->save();
 
             DB::commit();
@@ -473,6 +475,7 @@ class CursosController extends Controller
             $sesion->tema = $request->tema;
             $sesion->fecha = $fechaFormat;
             $sesion->carga_academicas_id = $carga->id;
+            $sesion->periodos_id = $periodo->id;
             $sesion->save();
 
             DB::commit();
