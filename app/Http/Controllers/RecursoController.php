@@ -22,6 +22,7 @@ use App\Models\CargaAcademica;
 use App\Models\PlantillaHorario;
 use App\Models\AsistenciaDocente;
 use App\Models\Ciclo;
+use App\Support\MediaUrl;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
@@ -165,32 +166,42 @@ class RecursoController extends Controller
         // dd($request);
         $fecha = new \DateTime($request->fecha);
         $semana = $fecha->format("N");
-        $dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes"];
+        $dias = ["Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
 
-        $response["dia"] = $dias[(int)($semana - 1)];
+        $response["dia"] = $dias[(int)($semana - 1)] ?? null;
         $response["fecha"] = $fecha->format("d/m/Y");
         $fecha = $fecha->format("Y-m-d");
-        $periodo = Periodo::where("estado", "1")->first();
+        $periodo = Periodo::actual();
 
-        $response["cargaAcademica"] = CargaAcademica::with(["curso", "docente"])
-            ->select('carga_academicas.*', 'da.usuario')
-            ->leftJoin('docente_aptos as da', 'da.docentes_id', 'carga_academicas.docentes_id')
-            ->where("carga_academicas.grupo_aulas_id", $request->grupo)
-            ->where("carga_academicas.periodos_id", $periodo->id)
-            ->where("carga_academicas.estado", "1")
-            ->orderBy("carga_academicas.cursos_id", "asc")
-            ->orderBy("carga_academicas.tipo", "asc")
-            ->get();
+        $response["cargaAcademica"] = collect();
 
+        if ($periodo) {
+            $response["cargaAcademica"] = CargaAcademica::with(["curso", "docente"])
+                ->select('carga_academicas.*', 'da.usuario')
+                ->leftJoin('docente_aptos as da', 'da.docentes_id', 'carga_academicas.docentes_id')
+                ->where("carga_academicas.grupo_aulas_id", $request->grupo)
+                ->where("carga_academicas.periodos_id", $periodo->id)
+                ->where("carga_academicas.estado", "1")
+                ->orderBy("carga_academicas.cursos_id", "asc")
+                ->orderBy("carga_academicas.tipo", "asc")
+                ->get();
+        }
 
         $grupoAula = GrupoAula::find($request->grupo);
         // dd($grupoAula);
-        $response["turno"] = Turno::find($grupoAula->turnos_id);
+        $response["turno"] = $grupoAula ? Turno::find($grupoAula->turnos_id) : null;
         $plantillaHorario = [];
+
+        if (!$grupoAula) {
+            $response["horario"] = $plantillaHorario;
+
+            return response()->json($response);
+        }
+
         $plantilla = PlantillaHorario::select(
             "id",
-            DB::raw("DATE_FORMAT(hora_inicio,'%H:%i') as horaInicio"),
-            DB::raw("DATE_FORMAT(hora_fin,'%H:%i') as horaFin"),
+            DB::raw("LEFT(hora_inicio, 5) as horaInicio"),
+            DB::raw("LEFT(hora_fin, 5) as horaFin"),
             "tipo"
         )
             ->where("turnos_id", $grupoAula->turnos_id)
@@ -198,28 +209,40 @@ class RecursoController extends Controller
             ->where("estado", "1")
             ->get();
 
+        $horariosPorPlantilla = collect();
+
+        if ($periodo && $plantilla->isNotEmpty()) {
+            $horariosPorPlantilla = Horario::with(['curso', 'carga'])
+                ->select("horarios.*", "ad.estado", "ad.id as idAsistencia", "ad.docentes_id as IdDocente")
+                ->join('carga_academicas as ca', function ($join) use ($request, $periodo) {
+                    $join->on('ca.id', '=', 'horarios.carga_academicas_id')
+                        ->where('ca.grupo_aulas_id', '=', $request->grupo)
+                        ->where('ca.periodos_id', '=', $periodo->id)
+                        ->where('ca.estado', '=', '1');
+                })
+                ->leftJoin('asistencia_docentes as ad', function ($join) use ($fecha) {
+                    $join->on('ad.carga_academicas_id', '=', 'horarios.carga_academicas_id')
+                        ->where('ad.fecha', '=', $fecha);
+                })
+                ->where("horarios.periodos_id", $periodo->id)
+                ->where("horarios.dia", $semana)
+                ->whereIn("horarios.plantilla_horarios_id", $plantilla->pluck('id')->all())
+                ->orderBy("horarios.plantilla_horarios_id", "asc")
+                ->orderBy("horarios.id", "asc")
+                ->get()
+                ->groupBy('plantilla_horarios_id')
+                ->map(function ($horarios) {
+                    return $horarios->first();
+                });
+        }
+
         foreach ($plantilla as $k => $val) {
             $obj = new \stdClass;
             $obj->id = $val->id;
             $obj->hora_inicio = $val->horaInicio;
             $obj->hora_fin = $val->horaFin;
             $obj->tipo = $val->tipo;
-            $obj->horario = Horario::with(['curso', 'carga'])
-                ->select("horarios.*", "ad.estado", "ad.id as idAsistencia", "ad.docentes_id as IdDocente")
-                ->whereHas('carga', function (Builder $query) use ($request) {
-                    $query->where('grupo_aulas_id', $request->grupo)
-                        ->where("estado", "1");
-                })
-                // ->leftJoin("asistencia_docentes as ad","ad.carga_academicas_id","horarios.carga_academicas_id")
-                ->leftJoin('asistencia_docentes as ad', function ($join) use ($fecha) {
-                    $join->on('ad.carga_academicas_id', '=', 'horarios.carga_academicas_id')
-                        ->where('ad.fecha', '=', $fecha);
-                })
-                // ->where("carga_academicas_id",$inscripcionDocente->id)
-                ->where("plantilla_horarios_id", $val->id)
-                ->where("dia", $semana)
-                ->orderBy("dia", "asc")
-                ->first();
+            $obj->horario = $horariosPorPlantilla->get($val->id);
             $plantillaHorario[] = $obj;
         }
         $response["horario"] = $plantillaHorario;
@@ -345,47 +368,54 @@ class RecursoController extends Controller
     }
     public function getDataUser(Request $request)
     {
-        // dd($request->rolName);
         $idUser = $request->idUser;
-        $rolName = $request->rolName;
-        $rolName = $request->rolName;
-        // $usuario =
-        $objeto = new \stdClass;
+        $rolName = (string) $request->rolName;
+        $objeto = (object) [
+            'nombres' => 'Usuario no disponible',
+            'estado_foto' => false,
+            'path_foto' => '',
+            'rol' => $rolName ?: 'Usuario',
+        ];
+
         switch ($rolName) {
             case 'Estudiante':
-                // dd($request->rolName);
                 $query = Estudiante::select("nombres", "paterno", "foto")->find($idUser);
 
-                $objeto->nombres = $query->nombres." ".$query->paterno;
-                $objeto->estado_foto = true;
-                $objeto->path_foto = env("EXTERNALURLIMAGE") . '/storage/fotos/' . $query->foto;
-                $objeto->rol = 'Estudiante';
+                if ($query) {
+                    $objeto->nombres = trim($query->nombres . " " . $query->paterno);
+                    $objeto->path_foto = MediaUrl::profile($query->foto);
+                    $objeto->estado_foto = $objeto->path_foto !== '';
+                }
 
                 break;
             case 'Docente':
                 $query = DocenteApto::with('docente')->find($idUser);
-                // $query = DocenteApto::with('docente')->first();
 
-                // dd($query);
-                $objeto->nombres = $query->docente->nombres." ".$query->docente->paterno;
-                $objeto->estado_foto = true;
-                $objeto->path_foto = env("EXTERNALURLIMAGE") . '/storage/fotos/' . $query->docente->foto;
-                $objeto->rol = 'Docente';
+                if ($query && $query->docente) {
+                    $objeto->nombres = trim($query->docente->nombres . " " . $query->docente->paterno);
+                    $objeto->path_foto = MediaUrl::profile($query->docente->foto);
+                    $objeto->estado_foto = $objeto->path_foto !== '';
+                }
+
                 break;
 
             default:
                 $query = User::find($idUser);
 
-                $objeto->nombres = $query->name." ".$query->paterno;
-                $objeto->estado_foto = false;
-                $objeto->path_foto = "";
-                $objeto->rol = 'Administrativo';
+                if ($query) {
+                    $objeto->nombres = trim($query->name . " " . $query->paterno);
+                    $objeto->path_foto = MediaUrl::publicAsset($query->profile_photo_path);
+                    $objeto->estado_foto = $objeto->path_foto !== '';
+                }
+
                 break;
         }
-        // dd($objeto);
 
         $response["datos"] = $objeto;
-        $response["id"] = Crypt::encryptString($request->id);
+        $response["id"] = $request->filled('id')
+            ? Crypt::encryptString($request->id)
+            : null;
+
         return $response;
     }
 

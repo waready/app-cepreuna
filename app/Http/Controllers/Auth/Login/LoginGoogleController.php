@@ -34,6 +34,22 @@ class LoginGoogleController extends Controller
         return Auth::guard($this->guard);
     }
 
+    protected function syncUserRole($user, string $roleName): void
+    {
+        if ($user && ! $user->hasRole($roleName)) {
+            $user->assignRole($roleName);
+        }
+    }
+
+    protected function redirectByRole(string $roleName)
+    {
+        if ($roleName === 'Docente') {
+            return redirect()->route('docentes.recursos.cursos');
+        }
+
+        return redirect()->route('estudiantes.cursos');
+    }
+
     public function redirectToProvider()
     {
         return Socialite::driver('google')->redirect();
@@ -48,33 +64,46 @@ class LoginGoogleController extends Controller
     {
         $user = Socialite::driver('google')->stateless()->user();
         // dd($user);
-        $docenteApto = DocenteApto::where('idgsuite', $user->id)->first();
+        $docenteApto = DocenteApto::query()
+            ->delPeriodoActual()
+            ->where('idgsuite', $user->id)
+            ->first();
         $estudiante = Estudiante::where('idgsuite', $user->id)->first();
         $idEstudiante = $estudiante ? $estudiante->id : '';
         // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::where([['matricula', '1'], ['estudiantes_id', $idEstudiante]])->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->where([
+                ['matricula', '1'],
+                ['estado', '1'],
+            ])
+            ->latest('id')
+            ->first();
 
 
         if ($docenteApto) {
             $this->guard = 'docente';
+            $this->syncUserRole($docenteApto, 'Docente');
 
             Auth::guard('docente')->login($docenteApto);
 
             // $usuario = Auth::guard('docente')->user();
             $token = $docenteApto->createToken('auth-token')->plainTextToken;
             // dd($usuario);
-            return redirect('dashboard');
+            return $this->redirectByRole('Docente');
             // return Inertia::render('Dashboard');
         } elseif ($inscripcion) {
         
             $this->guard = 'estudiante';
+            $this->syncUserRole($estudiante, 'Estudiante');
 
             Auth::guard('estudiante')->login($estudiante);
 
             // $usuario = Auth::guard('docente')->user();
             $token = $estudiante->createToken('auth-token')->plainTextToken;
             // dd($usuario);
-            return redirect('dashboard');
+            return $this->redirectByRole('Estudiante');
             // return Inertia::render('Dashboard');
         } else {
             // Auth::login($findUser);
@@ -108,12 +137,26 @@ class LoginGoogleController extends Controller
 
     public function loginSinGsuit(request $request){
        
-        $docenteApto = DocenteApto::where([['usuario', $request->email],['password',$request->password]])->first();
+        $docenteApto = DocenteApto::query()
+            ->delPeriodoActual()
+            ->where([
+                ['usuario', $request->email],
+                ['password', $request->password],
+            ])
+            ->first();
         $estudiante = Estudiante::where([['usuario', $request->email],['password',$request->password]])->first();
         $idEstudiante = $estudiante ? $estudiante->id : '';
         #return $idEstudiante;
         // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::where([['matricula', '1'],['estado', '1'],['estudiantes_id', $idEstudiante]])->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->where([
+                ['matricula', '1'],
+                ['estado', '1'],
+            ])
+            ->latest('id')
+            ->first();
         
 
 
@@ -131,13 +174,14 @@ class LoginGoogleController extends Controller
 
         
             $this->guard = 'docente';
+            $this->syncUserRole($docenteApto, 'Docente');
 
             Auth::guard('docente')->login($docenteApto);
 
             // $usuario = Auth::guard('docente')->user();
             $token = $docenteApto->createToken('auth-token')->plainTextToken;
             // dd($usuario);
-            return redirect('dashboard');
+            return $this->redirectByRole('Docente');
             // return Inertia::render('Dashboard');
         } elseif ($inscripcion) {
         	/*if($request->email == '60341156@cepreuna.edu.pe'){
@@ -151,6 +195,7 @@ class LoginGoogleController extends Controller
         	}*/
 
             $this->guard = 'estudiante';
+            $this->syncUserRole($estudiante, 'Estudiante');
 
             Auth::guard('estudiante')->login($estudiante);
 
@@ -158,7 +203,7 @@ class LoginGoogleController extends Controller
             $token = $estudiante->createToken('auth-token')->plainTextToken;
             
             // dd($usuario);
-            return redirect('dashboard');
+            return $this->redirectByRole('Estudiante');
             // return Inertia::render('Dashboard');
         } else {
             // Auth::login($findUser);

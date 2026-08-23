@@ -21,6 +21,7 @@
                         </div>
                         <div class="p-card-content">
                             <table>
+                                <tbody>
                                 <tr>
                                     <th>Nombres</th>
                                     <td>:</td>
@@ -41,6 +42,7 @@
                                     <td>:</td>
                                     <td>{{ perfil.email }}</td>
                                 </tr>
+                                </tbody>
                             </table>
                         </div>
                     </div>

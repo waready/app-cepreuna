@@ -26,7 +26,7 @@ PERFORMANCE OF THIS SOFTWARE.
 
 /*! cputils.js (C) 2013-present SheetJS -- http://sheetjs.com */
 
-/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/facebook/regenerator/blob/main/LICENSE */
+/*! regenerator-runtime -- Copyright (c) 2014-present, Facebook, Inc. -- license (MIT): https://github.com/babel/babel/blob/main/packages/babel-helpers/LICENSE */
 
 /*! sheetjs (C) 2013-present SheetJS -- http://sheetjs.com */
 
@@ -38,3 +38,21 @@ PERFORMANCE OF THIS SOFTWARE.
  * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
  * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
  */
+
+/**
+* @vue/runtime-core v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/runtime-dom v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/
+
+/**
+* @vue/shared v3.5.34
+* (c) 2018-present Yuxi (Evan) You and Vue contributors
+* @license MIT
+**/

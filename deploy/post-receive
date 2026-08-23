@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+DEPLOY_REV=""
+while read -r old_rev new_rev ref_name; do
+    if [[ "$ref_name" == "refs/heads/main" ]]; then
+        DEPLOY_REV="$new_rev"
+    fi
+done
+
+if [[ -z "$DEPLOY_REV" ]]; then
+    echo "No main branch update received; deployment skipped."
+    exit 0
+fi
+
+HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$(cd "$HOOK_DIR/.." && pwd)"
+APP_ROOT="${APP_ROOT:-/var/www/app-cepreuna}"
+SHARED_DIR="$APP_ROOT/shared"
+
+if [[ -f "$SHARED_DIR/deploy.env" ]]; then
+    # shellcheck disable=SC1091
+    source "$SHARED_DIR/deploy.env"
+fi
+
+RELEASES_DIR="${RELEASES_DIR:-$APP_ROOT/releases}"
+CURRENT_LINK="${CURRENT_LINK:-$APP_ROOT/current}"
+PHP_BIN="${PHP_BIN:-php8.3}"
+COMPOSER_BIN="${COMPOSER_BIN:-composer}"
+NPM_BIN="${NPM_BIN:-npm}"
+BUILD_FRONTEND="${BUILD_FRONTEND:-0}"
+HEALTH_URL="${HEALTH_URL:-https://app.cepreuna.edu.pe/}"
+RELOAD_CMD="${RELOAD_CMD:-}"
+
+if [[ ! -f "$SHARED_DIR/.env" ]]; then
+    echo "Missing $SHARED_DIR/.env; deployment aborted."
+    exit 1
+fi
+
+if [[ ! -d "$SHARED_DIR/storage" ]]; then
+    echo "Missing $SHARED_DIR/storage; deployment aborted."
+    exit 1
+fi
+
+SHORT_REV="$(git --git-dir="$REPO_DIR" rev-parse --short "$DEPLOY_REV")"
+RELEASE_NAME="release-$(date -u +%Y%m%d%H%M%S)-$SHORT_REV"
+RELEASE_DIR="$RELEASES_DIR/$RELEASE_NAME"
+PREVIOUS_TARGET=""
+
+mkdir -p "$RELEASE_DIR"
+git --git-dir="$REPO_DIR" archive "$DEPLOY_REV" | tar -x -C "$RELEASE_DIR"
+
+rm -rf "$RELEASE_DIR/storage"
+ln -s "$SHARED_DIR/storage" "$RELEASE_DIR/storage"
+ln -s "$SHARED_DIR/.env" "$RELEASE_DIR/.env"
+
+"$COMPOSER_BIN" install \
+    --working-dir="$RELEASE_DIR" \
+    --no-dev \
+    --prefer-dist \
+    --no-interaction \
+    --optimize-autoloader
+
+if [[ "$BUILD_FRONTEND" == "1" ]]; then
+    (
+        cd "$RELEASE_DIR"
+        "$NPM_BIN" ci --no-audit --no-fund
+        "$NPM_BIN" run production
+    )
+fi
+
+(
+    cd "$RELEASE_DIR"
+    "$PHP_BIN" artisan config:cache
+    "$PHP_BIN" artisan view:cache
+    "$PHP_BIN" artisan storage:link
+)
+
+if [[ -L "$CURRENT_LINK" ]]; then
+    PREVIOUS_TARGET="$(readlink -f "$CURRENT_LINK")"
+fi
+
+NEXT_LINK="${CURRENT_LINK}.next"
+rm -f "$NEXT_LINK"
+ln -s "$RELEASE_DIR" "$NEXT_LINK"
+mv -Tf "$NEXT_LINK" "$CURRENT_LINK"
+
+rollback() {
+    if [[ -n "$PREVIOUS_TARGET" && -d "$PREVIOUS_TARGET" ]]; then
+        rm -f "$NEXT_LINK"
+        ln -s "$PREVIOUS_TARGET" "$NEXT_LINK"
+        mv -Tf "$NEXT_LINK" "$CURRENT_LINK"
+        echo "Rolled back to $PREVIOUS_TARGET"
+    else
+        rm -f "$CURRENT_LINK"
+        echo "Removed failed first release from current link."
+    fi
+}
+
+if [[ -n "$RELOAD_CMD" ]] && ! bash -lc "$RELOAD_CMD"; then
+    rollback
+    echo "PHP reload failed; deployment rolled back."
+    exit 1
+fi
+
+if ! curl --fail --silent --show-error --max-time 25 "$HEALTH_URL" > /dev/null; then
+    rollback
+    if [[ -n "$RELOAD_CMD" ]]; then
+        bash -lc "$RELOAD_CMD" || true
+    fi
+    echo "Health check failed; deployment rolled back."
+    exit 1
+fi
+
+echo "Deployment completed: $RELEASE_DIR"
+echo "Database migrations were not executed."

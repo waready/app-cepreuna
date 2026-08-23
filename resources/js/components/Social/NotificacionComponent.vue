@@ -13,7 +13,7 @@
                 <span class="notification-category">Hace {{tiempo}}</span>
             </div>
             <div class="notification-list-action">
-                <img :src="'/storage/publicaciones/'+imagenTumb" />
+                <img v-if="imagenTumb" :src="imagenTumb" />
                 <!-- <Avatar icon="pi pi-user" class="mr-2" size="xlarge" shape="circle" /> -->
             </div>
         </a>
@@ -50,7 +50,7 @@ export default {
             tiempo.value = timeRange(item.value.created_at);
             if(item.value.tipo=="1"){
                 // console.log("publicacion")
-                imagenTumb.value = item.value.publicacion.imagen_tumb;
+                imagenTumb.value = item.value.publicacion.imagen_tumb_url || publicacionMediaUrl(item.value.publicacion.imagen_tumb);
                 icono.value = "pi-id-card";
                 iconoColor.value = "bg-blue-500";
                 axios
@@ -58,7 +58,7 @@ export default {
                     params: {
                         id: item.value.publicacion.id ? item.value.publicacion.id : "",
                         idUser: item.value.publicacion.user_id ? item.value.publicacion.user_id : "",
-                        rolName: item.value.publicacion.rol.name ? item.value.publicacion.rol.name : "",
+                        rolName: item.value.publicacion.rol?.name || "",
                     },
                 })
                 .then((response) => {
@@ -71,7 +71,7 @@ export default {
             }
             if(item.value.tipo=="2"){
                 // console.log("comentario")
-                imagenTumb.value = item.value.comentario.publicacion.imagen_tumb;
+                imagenTumb.value = item.value.comentario.publicacion.imagen_tumb_url || publicacionMediaUrl(item.value.comentario.publicacion.imagen_tumb);
                 icono.value = "pi-comments";
                 iconoColor.value = "bg-green-500";
                 // console.log("publicacion")
@@ -80,7 +80,7 @@ export default {
                     params: {
                         id: item.value.publicacion.id ? item.value.publicacion.id : "",
                         idUser: item.value.comentario.user_id ? item.value.comentario.user_id : "",
-                        rolName: item.value.comentario.rol.name ? item.value.comentario.rol.name : "",
+                        rolName: item.value.comentario.rol?.name || "",
                     },
                 })
                 .then((response) => {
@@ -92,6 +92,16 @@ export default {
                 });
             }
         }
+        const publicacionMediaUrl = (path) => {
+            if (!path) return "";
+            if (/^https?:\/\//i.test(path)) return path;
+
+            const cleanPath = String(path).replace(/\\/g, "/").replace(/^\/+/, "");
+            if (cleanPath.startsWith("storage/")) return `/${cleanPath}`;
+            if (cleanPath.startsWith("publicaciones/")) return `/storage/${cleanPath}`;
+
+            return `/storage/publicaciones/${cleanPath}`;
+        };
         onMounted(() => {
             // cacularTiempo();
             getNotificacion();
@@ -106,7 +116,8 @@ export default {
             icono,
             iconoColor,
             estadoFotos,
-            idCrypt
+            idCrypt,
+            publicacionMediaUrl
         };
     },
 };

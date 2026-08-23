@@ -33,7 +33,7 @@
             <!-- <div class="flex">
                 <Button label="Nuevo Comunicado" icon="pi pi-plus" class=" mb-3" @click="newPost(usuario.id)" />
             </div> -->
-            <PublicacionComponent v-for="p in publicaciones" :key="p" :datos="p" :usuario="usuario" :datausuario="datausuario"></PublicacionComponent>
+            <PublicacionComponent v-for="p in publicaciones" :key="p.id" :datos="p" :usuario="usuario" :datausuario="datausuario"></PublicacionComponent>
             <div class="col-12 text-center" v-if="total > pagina">
                 <Button label="Ver más publicaciones" class="p-button-link" @click="morePublicaciones" />
             </div>

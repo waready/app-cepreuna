@@ -31,12 +31,23 @@ class CursosController extends Controller
 
         $idEstudiante = Auth::user()->id;
         // dd($idEstudiante);
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
-        //return $matricula;
-        $periodo = Periodo::where('estado', '1')->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
 
         // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::where([['matricula', '1'], ['estudiantes_id', $idEstudiante]])->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual(optional($periodo)->id)
+            ->where('matricula', '1')
+            ->latest('id')
+            ->first();
+
+        if (!$periodo || !$matricula) {
+            return Inertia::render('Estudiante/Curso', [
+                "calificacion" => [],
+                "inscripcion" => $inscripcion,
+            ]);
+        }
 
         // $docenteApto = DocenteApto::find($idDocenteApto);
         // // $carga = CargaAcademica::with('curso')->select('link')->where('docentes_id',$docenteApto->docentes_id)->get();
@@ -48,14 +59,25 @@ class CursosController extends Controller
             ->orderBy("cursos_id")
             ->get();
 
+        $calificacionesPorCarga = $this->obtenerUltimasCalificacionesActivasPorCarga($cargas->pluck('id')->all());
+        $calificacionesRespondidas = [];
+
+        if ($calificacionesPorCarga->isNotEmpty()) {
+            $calificacionesRespondidas = array_fill_keys(
+                CalificacionDocenteDetalle::where("estudiantes_id", $idEstudiante)
+                    ->whereIn("calificacion_docentes_id", $calificacionesPorCarga->pluck('id')->all())
+                    ->pluck("calificacion_docentes_id")
+                    ->all(),
+                true
+            );
+        }
+
         // $calificacionDocente = CalificacionDocente::with("asistenciaDocente")->where([["carga_academicas_id", 34], ["estado", "1"]])->orderBy("id", "desc")->first();
         // dd($calificacionDocente);
         foreach ($cargas as $carga) {
-            // echo $carga->id . " -";
-
-            $calificacionDocente = CalificacionDocente::with("asistenciaDocente", "docente")->where([["carga_academicas_id", $carga->id], ["estado", "1"]])->orderBy("id", "desc")->first();
+            $calificacionDocente = $calificacionesPorCarga->get($carga->id);
             // $calificacionDocente = CalificacionDocente::with("asistenciaDocente")->where([["carga_academicas_id", 34], ["estado", "0"]])->orderBy("id", "desc")->first();
-            if (isset($calificacionDocente)) {
+            if (isset($calificacionDocente) && $calificacionDocente->asistenciaDocente) {
                 $fechaHoraFin = new DateTime($calificacionDocente->asistenciaDocente->fecha . " " . $calificacionDocente->asistenciaDocente->hora_fin);
                 // $fechaHoraFin = new DateTime("2021-12-02 11:03:00");
                 // $fechaHoraFin->modify('+24 hour');
@@ -67,9 +89,7 @@ class CursosController extends Controller
                     //$calificacionDocente->estado = "0";
                     //$calificacionDocente->save();
                 } else {
-                    $calificacionEstudiante = CalificacionDocenteDetalle::where([["estudiantes_id", $idEstudiante], ["calificacion_docentes_id", $calificacionDocente->id]])->get();
-
-                    if (count($calificacionEstudiante) == 0) {
+                    if (!isset($calificacionesRespondidas[$calificacionDocente->id])) {
                         array_push($calificar, $calificacionDocente);
                     }
                 }
@@ -90,18 +110,32 @@ class CursosController extends Controller
         $idEstudiante = Auth::user()->id;
         // dd($idEstudiante);
 
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
 
-        $periodo = Periodo::where('estado', '1')->first();
+        if (!$periodo || !$matricula) {
+            return [
+                "message" => 'No se encontró una matrícula activa para el ciclo actual.',
+                "status" => false,
+            ];
+        }
 
         // $docenteApto = DocenteApto::find($idDocenteApto);
         // // $carga = CargaAcademica::with('curso')->select('link')->where('docentes_id',$docenteApto->docentes_id)->get();
         $calificar = array();
         $carga = CargaAcademica::with(["curso", "docente", "grupoAula"])
             ->where("id", $request->input("cargaId"))
+            ->where("periodos_id", $periodo->id)
             ->where("estado", "1")
             ->first();
+
+        if (!$carga) {
+            return [
+                "message" => 'La carga académica no pertenece al ciclo activo.',
+                "status" => false,
+            ];
+        }
 
         //return $carga;
         $calificacionDocente = CalificacionDocente::where([["carga_academicas_id", $request->cargaId],["estado",'1']])
@@ -178,9 +212,12 @@ class CursosController extends Controller
     public function getCarga()
     {
         $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
 
-        $periodo = Periodo::where('estado', '1')->first();
+        if (!$periodo || !$matricula) {
+            return response()->json(['carga' => []]);
+        }
 
         // $docenteApto = DocenteApto::find($idDocenteApto);
         // // $carga = CargaAcademica::with('curso')->select('link')->where('docentes_id',$docenteApto->docentes_id)->get();
@@ -192,10 +229,31 @@ class CursosController extends Controller
             ->orderBy("cursos_id")
             ->get();
 
+        $cargasConEncuestaHabilitada = $cargas
+            ->filter(function ($carga) {
+                return optional($carga->grupoAula)->estado_encuesta == 1;
+            })
+            ->pluck('id')
+            ->all();
+
+        $encuestasRealizadas = [];
+
+        if (!empty($cargasConEncuestaHabilitada)) {
+            $encuestasRealizadas = array_fill_keys(
+                DB::table('calificacion_docentes as cd')
+                    ->join('calificacion_docente_detalles as cdd', 'cdd.calificacion_docentes_id', 'cd.id')
+                    ->where('cdd.estudiantes_id', $idEstudiante)
+                    ->where('cd.estado', '1')
+                    ->whereIn('cd.carga_academicas_id', $cargasConEncuestaHabilitada)
+                    ->distinct()
+                    ->pluck('cd.carga_academicas_id')
+                    ->all(),
+                true
+            );
+        }
+
         foreach ($cargas as $carga) {
-            if ($carga->grupoAula->estado_encuesta == 1) {
-                $carga->encuesta_realizada = $carga->getEncuestaRealizadaPorEstudiante($idEstudiante);
-            }
+            $carga->encuesta_realizada = isset($encuestasRealizadas[$carga->id]);
         }
         // esto muestra los cursos que el estudiante califico
         // $response["carga"] = CalificacionDocenteDetalle::with("CalificacionDocente")->where('estudiantes_id', $idEstudiante)->get()
@@ -210,7 +268,12 @@ class CursosController extends Controller
     }
     public function indexCuadernillo()
     {
-        $matricula = Matricula::with("grupoAula")->where("estudiantes_id", Auth::user()->id)->first();
+        $matricula = Matricula::query()
+            ->with("grupoAula")
+            ->delEstudiante(Auth::user()->id)
+            ->delPeriodoActual()
+            ->latest('id')
+            ->first();
         $response["area"] = 0;
         if ($matricula) {
             $response["area"] = $matricula->grupoAula->area->id;
@@ -223,8 +286,13 @@ class CursosController extends Controller
     {
         $idEstudiante = Auth::user()->id;
         $cuadernillos = [];
-        $periodo = Periodo::where('estado', '1')->first();
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (!$periodo || !$matricula) {
+            return response()->json(["cuadernillos" => $cuadernillos]);
+        }
+
         $cargaAcademica = DB::table('carga_academicas as ca')
             ->select(
                 'c.denominacion',
@@ -233,20 +301,38 @@ class CursosController extends Controller
             )
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
+            ->where('ca.periodos_id', $periodo->id)
             ->orderBy('c.id')
             ->get();
+
+        $curriculaDetalles = $this->obtenerCurriculaDetallesPorCurso(
+            $matricula->curriculas_id,
+            $cargaAcademica->pluck('id')->unique()->values()->all()
+        );
+
+        $cuadernillosPorDetalle = collect();
+
+        if ($curriculaDetalles->isNotEmpty()) {
+            $cuadernillosPorDetalle = DB::table('cuadernillos')
+                ->select('semana', 'path', 'id', 'curricula_detalles_id')
+                ->where('tipo', '2')
+                ->where('periodos_id', $periodo->id)
+                ->whereIn('curricula_detalles_id', $curriculaDetalles->pluck('id')->all())
+                ->orderBy('semana')
+                ->get()
+                ->groupBy('curricula_detalles_id');
+        }
+
         foreach ($cargaAcademica as $k => $val) {
-            $curriculaDetalle = CurriculaDetalle::where([['cursos_id', $val->id], ['curriculas_id', $matricula->curriculas_id]])->first();
             $obj = new \stdClass;
             $obj->id = $val->id;
             $obj->denominacion = $val->denominacion;
             $obj->color = $val->color;
-            $obj->base_path = env("EXTERNALURLIMAGE");
-            $obj->cuadernillos = DB::table('cuadernillos')->select('semana', 'path', 'id')->where([
-                ['tipo', '2'],
-                ['periodos_id', $periodo->id],
-                ['curricula_detalles_id', $curriculaDetalle->id]
-            ])->get();
+            $obj->base_path = config('app.external_image_url');
+            $curriculaDetalle = $curriculaDetalles->get($val->id);
+            $obj->cuadernillos = $curriculaDetalle
+                ? $cuadernillosPorDetalle->get($curriculaDetalle->id, collect())->values()
+                : collect();
             $cuadernillos[] = $obj;
         }
         $response["cuadernillos"] = $cuadernillos;
@@ -256,29 +342,28 @@ class CursosController extends Controller
     public function getUrlCuadernillo(Request $request)
     {
         $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
 
-        $periodo = Periodo::where('estado', '1')->first();
-        // $curricula = Curricula::where('areas_id',$request->area)->first();
-
-        $curriculaDetalle = CurriculaDetalle::where([['cursos_id', $request->curso], ['curriculas_id', $matricula->curriculas_id]])->first();
-        // return response()->json($curriculaDetalle);
-        if (empty($curriculaDetalle)) {
+        if (!$periodo || !$matricula) {
             return "";
-        } else {
-            $cuadernillo = DB::table('cuadernillos')->select('path')->where([
-                ['semana', $request->semana],
-                ['tipo', '2'],
-                ['periodos_id', $periodo->id],
-                ['curricula_detalles_id', $curriculaDetalle->id]
-            ])->first();
-
-            if (empty($cuadernillo)) {
-                return "";
-            } else {
-                return response()->json($cuadernillo);
-            }
         }
+
+        $cuadernillo = DB::table('cuadernillos as cu')
+            ->select('cu.path')
+            ->join('curricula_detalles as cd', 'cd.id', 'cu.curricula_detalles_id')
+            ->where('cu.semana', $request->semana)
+            ->where('cu.tipo', '2')
+            ->where('cu.periodos_id', $periodo->id)
+            ->where('cd.cursos_id', $request->curso)
+            ->where('cd.curriculas_id', $matricula->curriculas_id)
+            ->first();
+
+        if (empty($cuadernillo)) {
+            return "";
+        }
+
+        return response()->json($cuadernillo);
     }
     public function getCriteriosDocente(Request $request)
     {
@@ -342,7 +427,12 @@ class CursosController extends Controller
     public function indexTemario()
     {
         $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::with("grupoAula")->where("estudiantes_id", $idEstudiante)->first();
+        $matricula = Matricula::query()
+            ->with("grupoAula")
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->latest('id')
+            ->first();
         $response["area"] = 0;
         if ($matricula) {
             $response["area"] = $matricula->grupoAula->area->id;
@@ -354,30 +444,51 @@ class CursosController extends Controller
     public function getCursosEstudianteTemario()
     {
         $idEstudiante = Auth::user()->id;
-        $periodo = Periodo::where('estado', '1')->first();
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (!$periodo || !$matricula) {
+            return response()->json(["temarios" => []]);
+        }
 
         $cargaAcademica = DB::table('carga_academicas as ca')
             ->select(
-            'c.denominacion as curso',
-            'c.color as color',
-            'c.id as id',
-            'a.id as idArea',
-            'a.denominacion as area'
-        )
+                'c.denominacion as curso',
+                'c.color as color',
+                'c.id as id',
+                'a.id as idArea',
+                'a.denominacion as area'
+            )
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->join('areas as a', 'a.id', 'ga.areas_id')
             ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
             ->where('ca.periodos_id', $periodo->id)
             ->where('ca.estado', '1')
-            ->groupBy("ga.areas_id", "c.id")
-            ->orderBy("ga.areas_id", "asc")
+            ->distinct()
+            ->orderBy('a.id', 'asc')
+            ->orderBy('c.id', 'asc')
             ->get();
+
+        $curriculaDetalles = $this->obtenerCurriculaDetallesPorCurso(
+            $matricula->curriculas_id,
+            $cargaAcademica->pluck('id')->all()
+        );
+
+        $temariosPorDetalle = collect();
+
+        if ($curriculaDetalles->isNotEmpty()) {
+            $temariosPorDetalle = DB::table('temarios')
+                ->select('path', 'id', 'curricula_detalles_id')
+                ->where('periodos_id', $periodo->id)
+                ->whereIn('curricula_detalles_id', $curriculaDetalles->pluck('id')->all())
+                ->get()
+                ->keyBy('curricula_detalles_id');
+        }
 
         $temarios = [];
         foreach ($cargaAcademica as $k => $val) {
-            $curriculaDetalle = CurriculaDetalle::where([['cursos_id', $val->id], ['curriculas_id', $matricula->curriculas_id]])->first();
+            $curriculaDetalle = $curriculaDetalles->get($val->id);
 
             if ($curriculaDetalle) {
                 $obj = new \stdClass;
@@ -385,16 +496,48 @@ class CursosController extends Controller
                 $obj->area = $val->area;
                 $obj->curso = $val->curso;
                 $obj->color = $val->color;
-                $obj->base_path = env("EXTERNALURLIMAGE");
-                $obj->temarios = DB::table('temarios')->select('path', 'id')->where([
-                    ['periodos_id', $periodo->id],
-                    ['curricula_detalles_id', $curriculaDetalle->id]
-                ])->first();
+                $obj->base_path = config('app.external_image_url');
+                $obj->temarios = $temariosPorDetalle->get($curriculaDetalle->id);
                 $temarios[] = $obj;
             }
         }
         $response["temarios"] = $temarios;
 
         return response()->json($response);
+    }
+
+    private function obtenerCurriculaDetallesPorCurso($curriculaId, array $cursosIds)
+    {
+        if (empty($curriculaId) || empty($cursosIds)) {
+            return collect();
+        }
+
+        return CurriculaDetalle::where('curriculas_id', $curriculaId)
+            ->whereIn('cursos_id', $cursosIds)
+            ->get()
+            ->keyBy('cursos_id');
+    }
+
+    private function obtenerUltimasCalificacionesActivasPorCarga(array $cargaIds)
+    {
+        if (empty($cargaIds)) {
+            return collect();
+        }
+
+        $ultimasCalificacionesIds = CalificacionDocente::where('estado', '1')
+            ->whereIn('carga_academicas_id', $cargaIds)
+            ->selectRaw('MAX(id) as id')
+            ->groupBy('carga_academicas_id')
+            ->pluck('id')
+            ->all();
+
+        if (empty($ultimasCalificacionesIds)) {
+            return collect();
+        }
+
+        return CalificacionDocente::with("asistenciaDocente", "docente")
+            ->whereIn('id', $ultimasCalificacionesIds)
+            ->get()
+            ->keyBy('carga_academicas_id');
     }
 }

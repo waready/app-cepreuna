@@ -33,8 +33,8 @@ class ReporteController extends Controller
         $plantillaHorario = [];
         $plantilla = PlantillaHorario::select(
             "id",
-            DB::raw("DATE_FORMAT(hora_inicio,'%H:%i') as horaInicio"),
-            DB::raw("DATE_FORMAT(hora_fin,'%H:%i') as horaFin"),
+            DB::raw("LEFT(hora_inicio, 5) as horaInicio"),
+            DB::raw("LEFT(hora_fin, 5) as horaFin"),
             "tipo"
         )
             ->where("turnos_id", $grupoAula->turnos_id)
@@ -84,7 +84,7 @@ class ReporteController extends Controller
         // $fecha = date("d/m/Y", strtotime($fecha));
         // $hora = date("H:i:s", strtotime($asistencia->created_at));
         // dd($estudiantes);
-        $periodo = Periodo::where("estado", "1")->first();
+        $periodo = Periodo::actual();
         $pdf = new PDF();
         $pdf::SetMargins(10, 35, 10);
         PDF::setFooterCallback(function ($pdf) use ($user) {

@@ -6,11 +6,11 @@ return [
         'name' => env('APP_NAME', 'CepreUNA'),
         'short_name' => 'CepreUNA',
         'start_url' => '/',
-        'background_color' => '#fe8547',
-        'theme_color' => '#fe8547 ',
+        'background_color' => '#f4f6f8',
+        'theme_color' => '#c74717',
         'display' => 'standalone',
         'orientation' => 'portrait',
-        'status_bar' => 'black',
+        'status_bar' => 'default',
         'icons' => [
             '72x72' => [
                 'path' => '/images/icons/icon-72x72.png',
@@ -58,6 +58,12 @@ return [
             '2048x2732' => '/images/icons/splash-2048x2732.png',
         ],
         'shortcuts' => [],
-        'custom' => []
+        'custom' => [
+            'id' => '/',
+            'scope' => '/',
+            'lang' => 'es-PE',
+            'description' => 'Plataforma académica del Centro de Estudios Preuniversitario de la UNA Puno.',
+            'categories' => ['education'],
+        ]
     ]
 ];

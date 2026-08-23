@@ -25,8 +25,7 @@ class DashboardController extends Controller
     {
     
         $estudiante = Auth::user()->id;
-        $response["matricula"] = Matricula::where("estudiantes_id", $estudiante)
-            ->first();
+        $response["matricula"] = Matricula::actualDelEstudiante($estudiante);
         $response["estado"] = false;
         $response['estudiante'] = Estudiante::with('tipoDocumento', 'colegio', 'ubigeo')
             ->select('nombres', 'paterno', 'materno', 'foto', 'edit', DB::raw("DATE_FORMAT(fecha_nac,'%d/%m/%Y') as fecha_nac"), 'anio_egreso', 'nro_documento', 'ubigeos_id')
@@ -39,8 +38,15 @@ class DashboardController extends Controller
     {
         $estudiante = Auth::user()->id;
         $idgsuite = Auth::user()->idgsuite;
-        $matricula = Matricula::where("estudiantes_id", $estudiante)->first();
-        $periodo = Periodo::where("estado", "1")->first();
+        $periodo = Periodo::actual();
+        $matricula = Matricula::actualDelEstudiante($estudiante, optional($periodo)->id);
+
+        if (!$periodo || !$matricula) {
+            $response["carga"] = [];
+
+            return $response;
+        }
+
         $response["carga"] = CargaAcademica::with(["curso"])
             ->select("carga_academicas.*", DB::raw('"" as status'), DB::raw('"" as loading'))
             ->where("grupo_aulas_id", $matricula->grupo_aulas_id)
@@ -111,6 +117,15 @@ class DashboardController extends Controller
     public function getLocalEstudiante()
     {
         $estudiante = Auth::user()->id;
+        $matricula = Matricula::actualDelEstudiante($estudiante);
+
+        if (!$matricula) {
+            $response["status"] = false;
+            $response["result"] = "";
+
+            return $response;
+        }
+
         $data = DB::table('estudiantes as e')
             ->select(
                 DB::raw("CONCAT(e.paterno,' ',e.materno,' ',e.nombres) as nombres"),
@@ -131,7 +146,7 @@ class DashboardController extends Controller
             ->join("aulas as a", "a.id", "ga.aulas_id")
             ->join("locales as l", "l.id", "a.locales_id")
             ->join("sedes as s", "s.id", "l.sedes_id")
-            ->where("e.id", $estudiante)
+            ->where("m.id", $matricula->id)
             ->first();
 
         if (isset($data)) {

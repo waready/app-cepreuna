@@ -12,6 +12,37 @@ class Inscripciones extends Model implements Auditable
     protected $filleable = ['areas_id','cantidad_inscrito','estado','tipo_estudiante','turnos_id'];
     protected $guarded = [];
 
+    public function scopeDelEstudiante($query, $estudianteId)
+    {
+        return $query->where(
+            $query->getModel()->qualifyColumn('estudiantes_id'),
+            $estudianteId
+        );
+    }
+
+    public function scopeDelPeriodoActual($query, $periodoId = null)
+    {
+        $periodoId = $periodoId ?: optional(Periodo::actual())->id;
+
+        if (!$periodoId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(
+            $query->getModel()->qualifyColumn('periodos_id'),
+            $periodoId
+        );
+    }
+
+    public static function actualDelEstudiante($estudianteId, $periodoId = null)
+    {
+        return static::query()
+            ->delEstudiante($estudianteId)
+            ->delPeriodoActual($periodoId)
+            ->orderByDesc('id')
+            ->first();
+    }
+
     public function estudiante(){
     	return $this->belongsTo('App\Models\Estudiante','estudiantes_id');
     }

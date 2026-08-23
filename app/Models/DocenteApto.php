@@ -42,6 +42,20 @@ class DocenteApto extends Authenticatable implements Auditable
         'email_verified_at' => 'datetime',
     ];
 
+    public function scopeDelPeriodoActual($query, $periodoId = null)
+    {
+        $periodoId = $periodoId ?: optional(Periodo::actual())->id;
+
+        if (!$periodoId) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->where(
+            $query->getModel()->qualifyColumn('periodos_id'),
+            $periodoId
+        );
+    }
+
     public function model_has_role()
     {
         // if (Auth::user()->hasRole('Super Admin')) {

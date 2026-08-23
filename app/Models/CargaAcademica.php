@@ -11,6 +11,13 @@ class CargaAcademica extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
+    public function scopeDelDocenteEnPeriodo($query, $docenteId, $periodoId)
+    {
+        return $query
+            ->where($this->qualifyColumn('docentes_id'), $docenteId)
+            ->where($this->qualifyColumn('periodos_id'), $periodoId);
+    }
+
     public function curso()
     {
         return $this->belongsTo('App\Models\Curso', 'cursos_id');

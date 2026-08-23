@@ -11,12 +11,6 @@
                             <ComunicadoComponent :usuario="$attrs.user" :datausuario="$attrs.usuario" :permisos="$page.props.permissions" />
 
                         </TabSubmenu>
-                        <TabSubmenu title="Nosotros" icon="pi-users">
-                            <NosotrosComponent :datausuario="$attrs.usuario"/>
-                        </TabSubmenu>
-                        <TabSubmenu title="Ciclos" icon="pi-th-large">
-                            <CiclosComponent />
-                        </TabSubmenu>
                         <TabSubmenu title="Notificaciones" icon="pi-bell">
                             <NotificacionesComponent />
                         </TabSubmenu>
@@ -37,22 +31,18 @@ import TabSubmenu from "../components/TabSubmenu.vue";
 
 import axios from "axios";
 // componentes submenu
-import CiclosComponent from "../components/Social/CiclosComponent.vue";
 import NotificacionesComponent from "../components/Social/NotificacionesComponent.vue";
 import ComunicadoComponent from "@/components/RedSocial/ComunicadoComponent.vue";
 import PublicationComponent from "@/components/RedSocial/PublicationComponent.vue";
-import NosotrosComponent from "@/components/RedSocial/NosotrosComponent.vue";
 export default {
     components: {
         AppTopBarSocial,
         TabsMenu,
         TabSubmenu,
         AppLayout,
-        CiclosComponent,
         PublicationComponent,
         NotificacionesComponent,
         ComunicadoComponent,
-        NosotrosComponent,
     },
     props: {
         users: Object,
@@ -74,7 +64,7 @@ export default {
             axios.get(route("recursos.alert-notificaciones"), {}).then((response) => {
                 notificacion.value.alert = response.data.status;
                 notificacion.value.count = response.data.count;
-                notificacion.value.index = 4;
+                notificacion.value.index = 2;
             });
         };
         onMounted(() => {

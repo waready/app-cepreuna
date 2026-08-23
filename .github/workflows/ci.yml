@@ -1,0 +1,45 @@
+name: Validar aplicacion
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: gd, mbstring, pdo_mysql
+          coverage: none
+
+      - name: Instalar dependencias PHP
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Preparar Laravel
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Probar panel Docente
+        run: |
+          php artisan test tests/Unit
+          php artisan test tests/Feature/DocenteModulesTest.php
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Compilar frontend
+        run: |
+          npm ci
+          npm run production

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Web\Estudiante;
+namespace App\Http\Controllers\Estudiante;
 
 use App\Http\Controllers\Controller;
 use App\Models\Colegio;
@@ -139,8 +139,18 @@ class PerfilController extends Controller
             )
             ->where("id", $id)
             ->first();
-        $inscripcion = Inscripciones::where("estudiantes_id", $id)->first();
-        $periodo = Periodo::find($inscripcion->periodos_id);
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($id)
+            ->delPeriodoActual(optional($periodo)->id)
+            ->latest('id')
+            ->first();
+        $periodo = $inscripcion ? $inscripcion->periodo : null;
+
+        if (!$inscripcion || !$periodo) {
+            return response()->json(['error' => 'No se encontró una inscripción activa para el ciclo actual'], 404);
+        }
+
         $meses = array("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre");
         $mes = $meses[date('n') - 1];
         $pdf = new PDF();

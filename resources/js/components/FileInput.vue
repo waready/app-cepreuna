@@ -14,10 +14,14 @@
 </template>
 
 <script>
-import { defineComponent, ref, computed, onMounted } from "vue";
+import { defineComponent, ref, computed, onMounted, onBeforeUnmount, watch } from "vue";
 export default defineComponent({
     name: "FileInput",
+    emits: ["update:modelValue"],
     props: {
+        modelValue: {
+            default: null,
+        },
         size: {
             type: Number,
             default: 0,
@@ -70,6 +74,7 @@ export default defineComponent({
     setup(props, context) {
         const file = ref(null);
         const FileName = ref(null);
+        let objectUrl = null;
         const acceptType = computed(() => {
             if (props.isExcel) {
                 return ".xlsx, .xls";
@@ -93,25 +98,35 @@ export default defineComponent({
         const buttonStyle = computed(() => {
             return `background-color: ${props.buttonBackgroundColor}; color: ${props.buttonTextColor};`;
         });
+        const releaseObjectUrl = () => {
+            if (objectUrl) {
+                URL.revokeObjectURL(objectUrl);
+                objectUrl = null;
+            }
+        };
+        const resetInput = () => {
+            releaseObjectUrl();
+            FileName.value = props.placeholderInputText;
+            if (file.value) {
+                file.value.value = "";
+            }
+        };
         const emitFileChange = () => {
             if (file.value.files.length > 0) {
                 if (file.value.files[0].size > 1024 * (1024 * props.size) && props.size != 0) {
-                    errorSize.value = `El tamaño del archivo excede el limite de 2 MB permitido.`;
+                    errorSize.value = `El tamaño del archivo excede el límite de ${props.size} MB permitido.`;
                     context.emit("update:modelValue", null);
-                    FileName.value = props.placeholderInputText;
+                    resetInput();
                 } else {
                     errorSize.value = false;
                     const fileAux = file.value.files[0];
                     FileName.value = fileAux.name;
-                    const FileBlob = new Blob([file], {
-                        name: FileName.value,
-                        type: fileAux.type,
-                    });
-                    const fileURL = URL.createObjectURL(FileBlob);
+                    releaseObjectUrl();
+                    objectUrl = URL.createObjectURL(fileAux);
                     const response = {
-                        file: file.value.files[0],
-                        fileName: file.value.files[0].name,
-                        fileBlob: fileURL,
+                        file: fileAux,
+                        fileName: fileAux.name,
+                        fileBlob: objectUrl,
                         fileType: fileAux.type,
                     };
                     context.emit("update:modelValue", response);
@@ -119,12 +134,22 @@ export default defineComponent({
             } else {
                 errorSize.value = false;
                 context.emit("update:modelValue", null);
-                FileName.value = props.placeholderInputText;
+                resetInput();
             }
         };
+        watch(
+            () => props.modelValue,
+            (value) => {
+                if (value === null) {
+                    errorSize.value = false;
+                    resetInput();
+                }
+            }
+        );
         onMounted(() => {
             FileName.value = props.placeholderInputText;
         });
+        onBeforeUnmount(releaseObjectUrl);
         return {
             FileName,
             acceptType,

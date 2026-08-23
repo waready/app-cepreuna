@@ -1,0 +1,91 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Http\Controllers\Docente\HorarioController;
+use App\Models\CargaAcademica;
+use App\Models\Sesiones;
+use Tests\TestCase;
+
+class DocenteModulesTest extends TestCase
+{
+    public function test_todas_las_rutas_del_panel_docente_exigen_su_guard_y_permiso()
+    {
+        $routeNames = [
+            'docentes.horarios',
+            'docentes.get-horario',
+            'docentes.recursos.cursos',
+            'docentes.recursos.get-carga',
+            'docentes.recursos.get-estudiantes',
+            'docentes.recursos.carga-update',
+            'docentes.recursos.cuadernillos',
+            'docentes.recursos.get-cursos-docente',
+            'docentes.recursos.temarios',
+            'docentes.recursos.get-cursos-docente-temario',
+            'docentes.recursos.sesiones',
+            'docentes.recursos.lista-sesion',
+            'docentes.recursos.get-cursos-carga',
+            'docentes.recursos.store-sesion',
+            'docentes.recursos.update-sesion',
+            'docentes.asistencias',
+            'docentes.get-asistencias',
+        ];
+
+        foreach ($routeNames as $routeName) {
+            $route = app('router')->getRoutes()->getByName($routeName);
+
+            $this->assertNotNull($route, "No existe la ruta {$routeName}");
+            $this->assertContains('auth:docente', $route->gatherMiddleware(), $routeName);
+            $this->assertContains('permission:panel docente', $route->gatherMiddleware(), $routeName);
+        }
+    }
+
+    public function test_el_scope_de_carga_filtra_docente_y_periodo()
+    {
+        $query = CargaAcademica::query()->delDocenteEnPeriodo(52, 9);
+
+        $this->assertStringContainsString('`carga_academicas`.`docentes_id` = ?', $query->toSql());
+        $this->assertStringContainsString('`carga_academicas`.`periodos_id` = ?', $query->toSql());
+        $this->assertSame([52, 9], $query->getBindings());
+    }
+
+    public function test_el_scope_de_sesion_hereda_el_docente_y_periodo_de_su_carga()
+    {
+        $query = Sesiones::query()->delDocenteEnPeriodo(52, 9);
+
+        $this->assertStringContainsString('exists', $query->toSql());
+        $this->assertStringContainsString('`carga_academicas`.`docentes_id` = ?', $query->toSql());
+        $this->assertStringContainsString('`carga_academicas`.`periodos_id` = ?', $query->toSql());
+        $this->assertSame([52, 9], $query->getBindings());
+    }
+
+    public function test_el_horario_conserva_todos_los_bloques_y_solo_asigna_el_que_corresponde()
+    {
+        $controller = new class extends HorarioController {
+            public function construir($turno, array $dias, array $plantillas, array $horarios)
+            {
+                return $this->construirTurnoHorario($turno, $dias, $plantillas, $horarios);
+            }
+        };
+
+        $turno = (object) ['id' => 1, 'denominacion' => 'Mañana'];
+        $plantilla = (object) [
+            'id' => 10,
+            'horaInicio' => '08:00',
+            'horaFin' => '08:45',
+            'tipo' => '1',
+        ];
+        $horario = (object) ['id' => 99, 'grupo' => 'A'];
+
+        $resultado = $controller->construir(
+            $turno,
+            [['id' => '1', 'nombre' => 'Lu'], ['id' => '2', 'nombre' => 'Ma']],
+            [1 => [$plantilla]],
+            ['1-10' => $horario]
+        );
+
+        $this->assertCount(2, $resultado->dias);
+        $this->assertSame($horario, $resultado->dias[0]->disponibilidad[0]->horario);
+        $this->assertNull($resultado->dias[1]->disponibilidad[0]->horario);
+    }
+}

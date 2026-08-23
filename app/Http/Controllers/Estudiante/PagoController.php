@@ -34,13 +34,54 @@ class PagoController extends Controller
         $this->dateTimePartial = date("m-Y");
     }
 
+    protected function mensajeInscripcionActiva(): string
+    {
+        return 'No se encontró una inscripción activa para el ciclo actual.';
+    }
+
+    protected function mensajeCronogramaActivo(): string
+    {
+        return 'No se encontró un cronograma activo para el ciclo actual.';
+    }
+
+    protected function respuestaPagoVacia(): array
+    {
+        return [
+            'cronograma' => null,
+            'deuda' => '0.00',
+            'tipo_descuento' => '',
+            'vouchers' => [],
+            'tarifario' => [],
+            'url' => config('app.external_image_url'),
+            'simulacro' => false,
+            'usuario' => '',
+            'puntaje' => '',
+            'carrera' => '',
+            'status' => false,
+            'message' => $this->mensajeInscripcionActiva(),
+        ];
+    }
+
+    protected function respuestaOperacionFallida(string $message): array
+    {
+        return [
+            'message' => $message,
+            'status' => false,
+        ];
+    }
+
 
     public function index()
     {
         $idEstudiante = Auth::user()->id;
 
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
-        $periodo = Periodo::where('estado', '1')->first();
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (! $periodo || ! $inscripcion) {
+            return Inertia::render('Estudiante/Pago', ["data" => $this->respuestaPagoVacia()]);
+        }
+
         // $estudiante = $inscripcion->estudiante()->with('colegio')->first();
         // $response['total_pagado'] = InscripcionPago::where([['inscripciones_id', $inscripcion->id], ['concepto_pagos_id', '!=', '3']])->sum('monto');
         $response['cronograma'] = CronogramaPago::select(
@@ -53,6 +94,14 @@ class PagoController extends Controller
                 ['periodos_id', $periodo->id]
             ])
             ->first();
+
+        if (! $response['cronograma']) {
+            $response = $this->respuestaPagoVacia();
+            $response['message'] = $this->mensajeCronogramaActivo();
+
+            return Inertia::render('Estudiante/Pago', ["data" => $response]);
+        }
+
         $descuento = '0';
         switch ($inscripcion->tipo_estudiante) {
             case '1':
@@ -98,7 +147,7 @@ class PagoController extends Controller
         $response['tipo_descuento'] = $descuento;
         $response['vouchers'] = $this->getVouchersPago();
         $response['tarifario'] = $tarifaEstudiante = TarifaEstudiante::where("estudiantes_id", $idEstudiante)->get();
-        $response['url'] = env("EXTERNALURLIMAGE");
+        $response['url'] = config('app.external_image_url');
         $estudiante = Estudiante::where('estudiantes.id', $idEstudiante)->first();
 
         $json = file_get_contents('data_puntaje.json');
@@ -124,16 +173,37 @@ class PagoController extends Controller
     public function getResumenPago()
     {
         $idEstudiante = Auth::user()->id;
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (! $periodo || ! $inscripcion) {
+            return [
+                'total_pagado' => 0,
+                'cronograma' => null,
+                'total_pagar' => 0,
+                'status' => false,
+                'message' => $this->mensajeInscripcionActiva(),
+            ];
+        }
+
         $estudiante = $inscripcion->estudiante()->with('colegio')->first();
         $response['total_pagado'] = InscripcionPago::where([['inscripciones_id', $inscripcion->id], ['concepto_pagos_id', '!=', '3']])->sum('monto');
-        $periodo = Periodo::where('estado', '1')->first();
         $response['cronograma'] = CronogramaPago::select('nro_cuota')
             ->where([
                 ['estado', '1'],
                 ['periodos_id', $periodo->id]
             ])
             ->first();
+
+        if (! $response['cronograma']) {
+            return [
+                'total_pagado' => $response['total_pagado'],
+                'cronograma' => null,
+                'total_pagar' => 0,
+                'status' => false,
+                'message' => $this->mensajeCronogramaActivo(),
+            ];
+        }
 
         $descuento = '0';
         switch ($inscripcion->tipo_estudiante) {
@@ -180,7 +250,16 @@ class PagoController extends Controller
     public function getVouchersPago()
     {
         $idEstudiante = Auth::user()->id;
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->latest('id')
+            ->first();
+
+        if (! $inscripcion) {
+            return [];
+        }
+
         $pagos = $inscripcion->pago()->get();
 
         return $pagos;
@@ -189,7 +268,15 @@ class PagoController extends Controller
     {
 
         $idEstudiante = Auth::user()->id;
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->latest('id')
+            ->first();
+
+        if (! $inscripcion) {
+            return response()->json($this->respuestaOperacionFallida($this->mensajeInscripcionActiva()));
+        }
 
         $rules = $request->validate([
             'secuencia' => 'required',
@@ -353,7 +440,16 @@ class PagoController extends Controller
     {
         // dd($request->all());
         $idEstudiante = Auth::user()->id;
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
+        $inscripcion = Inscripciones::query()
+            ->delEstudiante($idEstudiante)
+            ->delPeriodoActual()
+            ->latest('id')
+            ->first();
+
+        if (! $inscripcion) {
+            return response()->json($this->respuestaOperacionFallida($this->mensajeInscripcionActiva()));
+        }
+
         $estudiante = $inscripcion->estudiante()->with('colegio')->first();
 
         $tokens = $request->tokens;
@@ -796,16 +892,25 @@ class PagoController extends Controller
         // dd($request->all());
         // dd(strtotime("2022-05-20"));
         $idEstudiante = Auth::user()->id;
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (! $periodo || ! $inscripcion) {
+            return response()->json($this->respuestaOperacionFallida($this->mensajeInscripcionActiva()));
+        }
+
         $estudiante = $inscripcion->estudiante()->with('colegio')->first();
         $totalPagado = InscripcionPago::where('inscripciones_id', $inscripcion->id)->sum('monto');
-        $periodo = Periodo::where('estado', '1')->first();
         $cronograma = CronogramaPago::select('nro_cuota', 'fin')
             ->where([
                 ['estado', '1'],
                 ['periodos_id', $periodo->id]
             ])
             ->first();
+
+        if (! $cronograma) {
+            return response()->json($this->respuestaOperacionFallida($this->mensajeCronogramaActivo()));
+        }
 
         $tarifaMora = Tarifa::where('concepto_pagos_id', '3')->first();
 

@@ -50,7 +50,7 @@ return [
         'publicaciones' => [
             'driver' => 'local',
             'root' => storage_path('app/public/publicaciones'),
-            'url' => env('APP_URL').'/storage',
+            'url' => env('APP_URL').'/storage/publicaciones',
             'visibility' => 'public',
         ],
         'evidenciasReclamos' => [

@@ -30,11 +30,11 @@
                     >
                 </div>
                 <div v-if="datos.imagen_pub != null" class="flex col-12 h-30rem overflow-hidden align-items-center justify-content-center" style="background: #dee2e66e">
-                    <Image class="h-full" imageStyle="height:100%;" :src="'/storage/publicaciones/' + datos.imagen_pub" alt="imagen publicacion" preview />
+                    <Image class="h-full" imageStyle="height:100%;" :src="datos.imagen_pub_url || publicacionMediaUrl(datos.imagen_pub)" alt="imagen publicacion" preview />
                 </div>
                 <div v-if="datos.archivo != null" class="flex flex-row align-items-center align-content-center col-12 surface-300">
                     <a
-                        :href="'/storage/publicaciones/' + datos.archivo"
+                        :href="datos.archivo_url || publicacionMediaUrl(datos.archivo)"
                         target="_blank"
                         style="color: black; text-decoration: none"
                         class="flex flex-row align-items-center align-content-center col-12 surface-300"
@@ -161,7 +161,7 @@ export default {
                     params: {
                         id: datos.value.id ? datos.value.id : "",
                         idUser: datos.value.user_id ? datos.value.user_id : "",
-                        rolName: datos.value.rol.name ? datos.value.rol.name : "",
+                        rolName: datos.value.rol?.name || "",
                     },
                 })
                 .then((response) => {
@@ -170,8 +170,23 @@ export default {
                     foto.value = response.data.datos.path_foto;
                     estadoFotos.value = response.data.datos.estado_foto;
                     rol.value = response.data.datos.rol;
+                })
+                .catch(() => {
+                    nombre.value = "Usuario no disponible";
+                    foto.value = "";
+                    estadoFotos.value = false;
                 });
         });
+        const publicacionMediaUrl = (path) => {
+            if (!path) return "";
+            if (/^https?:\/\//i.test(path)) return path;
+
+            const cleanPath = String(path).replace(/\\/g, "/").replace(/^\/+/, "");
+            if (cleanPath.startsWith("storage/")) return `/${cleanPath}`;
+            if (cleanPath.startsWith("publicaciones/")) return `/storage/${cleanPath}`;
+
+            return `/storage/publicaciones/${cleanPath}`;
+        };
         const calculoFecha = (date) => {
             const fecha = new Date(date);
             return timeRange(fecha);
@@ -186,6 +201,7 @@ export default {
             rol,
             countComentarios,
             ocultarPublicacion,
+            publicacionMediaUrl,
         };
     },
 };

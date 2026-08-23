@@ -1,7 +1,7 @@
 <template>
     <div>
         <ul class="tabs__header">
-            <li class="flex justify-content-between" v-for="(tab, i) in tabs" :key="tab.title" @click="selectedTitle = tab.title;refreshNotificacion(i);" :class="{ selected: tab.title == selectedTitle }">
+            <li class="flex justify-content-between" v-for="(tab, i) in tabs" :key="tab.title" @click="selectedTitle = tab.title; refreshNotificacion(tab.title);" :class="{ selected: tab.title == selectedTitle }">
                 <i :class="'pi ' + tab.icon">
                     <Badge value="2" class="mr-2 alerta" v-if="nofitication.alert && nofitication.index == i"> {{ nofitication.count }}</Badge>
                 </i>
@@ -13,42 +13,40 @@
 </template>
 
 <script>
-import { onMounted, provide, ref, toRefs } from "vue";
+import { onMounted, provide, ref, toRef } from "vue";
 export default {
     props: {
-        // notificacion: Array,
+        notificacion: {
+            type: Object,
+            default: () => ({
+                alert: false,
+                count: 0,
+                index: 0,
+            }),
+        },
     },
-    setup(props, { slots, attrs }) {
-        // const tabTitles = ref("");
-        // const { notificacion} = toRefs(props);
-        const nofitication = ref({
-            alert: false,
-            count: 0,
-            index: 0,
-        });
+    setup(props, { slots }) {
+        const nofitication = toRef(props, "notificacion");
         const tabs = ref(slots.default().map((tab) => tab.props));
         const selectedTitle = ref(tabs.value[0].title);
         const isMobile = () => {
             return window.innerWidth < 1024;
         };
         const showTitle = ref(false);
-        const refreshNotificacion = (index) => {
-            // console.log(index)
-            if(index==4){
+        const refreshNotificacion = (title) => {
+            if (title === "Notificaciones") {
                 getAlertNotificaciones();
             }
-        }
+        };
         const getAlertNotificaciones = () => {
             // console.log(item.value);
             axios.get(route("recursos.alert-notificaciones"), {}).then((response) => {
                 nofitication.value.alert = response.data.status;
                 nofitication.value.count = response.data.count;
-                nofitication.value.index = 4;
+                nofitication.value.index = tabs.value.findIndex((tab) => tab.title === "Notificaciones");
             });
         };
         onMounted(() => {
-            const tabs = ref(slots.default().map((tab) => tab.props));
-            console.log(tabs);
             if (isMobile()) {
                 showTitle.value = false;
             } else {
@@ -64,7 +62,7 @@ export default {
             tabs,
             selectedTitle,
             showTitle,
-            refreshNotificacion
+            refreshNotificacion,
         };
     },
 };

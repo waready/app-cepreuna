@@ -37,7 +37,7 @@
                     </div>
                 </template>
             </Card>
-            <PublicacionComponent v-for="p in publicaciones" :key="p" :datos="p" :usuario="usuario" :datausuario="datausuario" :permisos="permisos"></PublicacionComponent>
+            <PublicacionComponent v-for="p in publicaciones" :key="p.id" :datos="p" :usuario="usuario" :datausuario="datausuario" :permisos="permisos"></PublicacionComponent>
             <div class="col-12 text-center" v-if="total > pagina">
                 <Button label="Ver más publicaciones" class="p-button-link" @click="morePublicaciones" />
             </div>

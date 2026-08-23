@@ -36,6 +36,7 @@
                                 </div>
                             </template>
                             <table v-if="carga.docente">
+                                <tbody>
                                 <tr>
                                     <th>Docente:</th>
                                     <td>
@@ -74,13 +75,16 @@
                                         </a>
                                     </td>
                                 </tr>
+                                </tbody>
                             </table>
                             <table v-else>
+                                <tbody>
                                 <tr>
                                     <td>
                                         <Tag class="mr-2 bg-gray-500">Docente no Asignado</Tag>
                                     </td>
                                 </tr>
+                                </tbody>
                             </table>
                         </AccordionTab>
                     </Accordion>

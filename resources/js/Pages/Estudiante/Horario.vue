@@ -7,10 +7,20 @@
                 </div>
             </div>
             <div class="grid">
+                <div v-if="cargando" class="col-12 py-5 text-center text-600">Cargando horario...</div>
+                <div v-else-if="errorHorario" class="col-12 p-3 border-round bg-red-50 text-red-700">
+                    {{ errorHorario }}
+                </div>
+                <div v-else-if="horarios.length === 0" class="col-12 py-5 text-center text-600">
+                    No hay un horario asignado para el periodo actual.
+                </div>
                 <div class="col-12 turnos" v-for="horario in horarios" :key="horario.id">
                     <h5>{{ horario.turno }} - {{ area }} - {{ grupo }}</h5>
-                    <h6 class="mb-0"><b> Auxiliar:</b> {{ auxiliar.auxiliar.user.paterno }} {{ auxiliar.auxiliar.user.materno }} {{ auxiliar.auxiliar.user.name }}</h6>
-                    <h6 class="mt-0"><b> Celular:</b> {{ auxiliar.auxiliar.telefono }}</h6>
+                    <template v-if="datosAuxiliar">
+                        <h6 class="mb-0"><b>Auxiliar:</b> {{ datosAuxiliar.nombre }}</h6>
+                        <h6 class="mt-0"><b>Celular:</b> {{ datosAuxiliar.telefono }}</h6>
+                    </template>
+                    <h6 v-else class="mt-0 text-600"><b>Auxiliar:</b> Por asignar</h6>
                     <Timeline :value="horario.dias" align="left">
                         <template #opposite="slotProps">
                             <small class="p-text-secondary">{{ slotProps.item.dia }}</small>
@@ -55,8 +65,25 @@ export default {
         const horarios = ref([]);
         const area = ref("");
         const grupo = ref("");
-        const auxiliar = ref("");
+        const auxiliar = ref(null);
+        const cargando = ref(true);
+        const errorHorario = ref("");
+        const datosAuxiliar = computed(() => {
+            const detalle = auxiliar.value?.auxiliar;
+            const usuario = detalle?.user;
+
+            if (!detalle || !usuario) {
+                return null;
+            }
+
+            return {
+                nombre: [usuario.paterno, usuario.materno, usuario.name].filter(Boolean).join(" "),
+                telefono: detalle.telefono || "No registrado",
+            };
+        });
         const getHorario = () => {
+            cargando.value = true;
+            errorHorario.value = "";
             axios
                 .get(route("estudiantes.get-horario"), {
                     // params: {
@@ -71,6 +98,12 @@ export default {
                     grupo.value = response.data.grupo;
                     area.value = response.data.area;
                     auxiliar.value = response.data.auxiliar_grupo;
+                })
+                .catch(() => {
+                    errorHorario.value = "No se pudo cargar el horario. Intente nuevamente.";
+                })
+                .finally(() => {
+                    cargando.value = false;
                 });
         };
 
@@ -84,6 +117,9 @@ export default {
             grupo,
             getHorario,
             auxiliar,
+            cargando,
+            errorHorario,
+            datosAuxiliar,
         };
     },
 };

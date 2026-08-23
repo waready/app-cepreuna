@@ -7,6 +7,7 @@ use App\Models\AsistenciaEstudiante;
 use App\Models\AsistenciaEstudianteDetalle;
 use App\Models\Estudiante;
 use App\Models\Matricula;
+use App\Models\Periodo;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -165,7 +166,11 @@ class EstudianteController extends Controller
     public function buscarEstudiante(Request $request)
     {
         // dd(env("EXTERNALURLIMAGE"));
+        $periodo = Periodo::actual();
         $validarGrupo = Estudiante::join("matriculas as m", "m.estudiantes_id", "estudiantes.id")
+            ->when($periodo, function ($query) use ($periodo) {
+                $query->where("m.periodos_id", $periodo->id);
+            })
             ->where([["m.grupo_aulas_id", $request->grupo], ["estudiantes.nro_documento", $request->dni]])
             ->first();
 
@@ -214,6 +219,9 @@ class EstudianteController extends Controller
                     ->join("aulas as a", "a.id", "ga.aulas_id")
                     ->join("locales as l", "l.id", "a.locales_id")
                     ->join("sedes as s", "s.id", "l.sedes_id")
+                    ->when($periodo, function ($query) use ($periodo) {
+                        $query->where("m.periodos_id", $periodo->id);
+                    })
                     ->where("estudiantes.nro_documento", $request->dni)
                     ->first();
                 $response["exist"] = "";
@@ -231,7 +239,7 @@ class EstudianteController extends Controller
 
             $response["estudiante"] = "";
         }
-        $response["baseUrl"] = env("EXTERNALURLIMAGE");
+        $response["baseUrl"] = config('app.external_image_url');
         return $response;
     }
     public function guardarAsistencia(Request $request)
@@ -267,13 +275,15 @@ class EstudianteController extends Controller
     }
     public function cerrarAsistencia(Request $request)
     {
-
+        $periodo = Periodo::actual();
         $asistencia = AsistenciaEstudiante::where("id", $request->asistencia)->first();
-        $estudiantesAsistencia = AsistenciaEstudianteDetalle::select("estudiantes_id")
-            ->where("asistencia_estudiantes_id", $request->asistencia)->get();
+        $estudiantesAsistencia = AsistenciaEstudianteDetalle::where("asistencia_estudiantes_id", $request->asistencia)
+            ->pluck("estudiantes_id");
 
         $estudiantesFaltantes = Matricula::where("grupo_aulas_id", $asistencia->grupo_aulas_id)
-            ->whereNotIn("estudiantes_id", $estudiantesAsistencia)->get();
+            ->delPeriodoActual(optional($periodo)->id)
+            ->whereNotIn("estudiantes_id", $estudiantesAsistencia)
+            ->get();
 
         DB::beginTransaction();
         try {

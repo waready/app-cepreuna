@@ -4,6 +4,7 @@ namespace App\Http\Controllers\RedSocial;
 
 use Image;
 use App\Models\Like;
+use App\Models\Periodo;
 use Inertia\Inertia;
 use Illuminate\Http\File;
 use App\Models\Publicacion;
@@ -39,6 +40,14 @@ class PublicationController extends Controller
         // $usuario = json_decode($request->usuario);
         $idRol = Auth::user()->roles[0]->id;
         $idUser = Auth::user()->id;
+        $periodo = Periodo::actual();
+
+        if (!$periodo) {
+            return [
+                "status" => false,
+                "message" => "No existe un periodo activo.",
+            ];
+        }
         // dd($usuario);
         $prefijo = date('Y/m');
         // $prefijo = date('Y');
@@ -55,6 +64,7 @@ class PublicationController extends Controller
                 $publicacion->tipo = '1';
             }
             $publicacion->role_id = $idRol;
+            $publicacion->periodos_id = $periodo->id;
             $publicacion->descripcion = $request->texto;
             $publicacion->like = 0;
             // Archivo
@@ -114,19 +124,28 @@ class PublicationController extends Controller
         //     ->join("roles as r", "r.id","p.role_id")
         //     ->join("estudiantes as e", "e.id", "p.user_id")
         //     ->select("e.nombres","e.paterno","e.materno","e.foto","p.descripcion","p.like","p.estado","p.tipo","p.archivo","p.imagen_tumb","p.imagen_pub","p.created_at","p.id");
-        $publicaciones = Publicacion::with(["rol"]);
-
-        if($request->tipo == '2'){
-            $publicaciones = $publicaciones->where("tipo","2");
-        }else{
-            $publicaciones = $publicaciones->where("tipo","1");
-        }
-
-
-
-
-        // $publicaciones = $publicaciones->
-        $publicaciones = $publicaciones->where([["estado",'1']])->orderBy("created_at","DESC")->paginate(5);
+        $tipo = $request->tipo == '2' ? '2' : '1';
+        $publicaciones = Publicacion::query()
+            ->select([
+                'id',
+                'periodos_id',
+                'tipo',
+                'descripcion',
+                'archivo',
+                'user_id',
+                'role_id',
+                'like',
+                'estado',
+                'imagen_pub',
+                'imagen_tumb',
+                'created_at',
+            ])
+            ->with('rol:id,name')
+            ->delPeriodoActual()
+            ->where('tipo', $tipo)
+            ->where('estado', '1')
+            ->orderByDesc('created_at')
+            ->paginate(5);
         // dd($response["publicaciones"]);
         return $publicaciones;
     }

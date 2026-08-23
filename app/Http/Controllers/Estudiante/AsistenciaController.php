@@ -27,7 +27,12 @@ class AsistenciaController extends Controller
     {
 
         $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante);
+
+        if (!$matricula) {
+            return response()->json(["asistencias" => []]);
+        }
+
         $horasAsistencia = DB::table('carga_academicas as ca')
             ->select(
                 DB::raw('MAX(ph.hora_fin) as fin'),
@@ -36,16 +41,27 @@ class AsistenciaController extends Controller
             ->join('horarios as h', 'h.carga_academicas_id', 'ca.id')
             ->join('plantilla_horarios as ph', 'ph.id', 'h.plantilla_horarios_id')
             ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
+            ->where('ca.periodos_id', $matricula->periodos_id)
+            ->where('h.periodos_id', $matricula->periodos_id)
             ->first();
 
-        $asistenciasEstudianteD = AsistenciaEstudianteDetalle::where('estudiantes_id', $idEstudiante)->get();
+        $asistenciasEstudianteD = AsistenciaEstudianteDetalle::select('asistencia_estudiante_detalles.*')
+            ->join('asistencia_estudiantes as ae', 'ae.id', 'asistencia_estudiante_detalles.asistencia_estudiantes_id')
+            ->addSelect('ae.fecha')
+            ->where('asistencia_estudiante_detalles.estudiantes_id', $idEstudiante)
+            ->where('ae.grupo_aulas_id', $matricula->grupo_aulas_id)
+            ->get();
 
+        $asistencias = [];
+
+        if (!$horasAsistencia || !$horasAsistencia->inicio || !$horasAsistencia->fin) {
+            return response()->json(["asistencias" => $asistencias]);
+        }
 
         foreach ($asistenciasEstudianteD as $k => $val) {
-            $asistenciasEstudiante = AsistenciaEstudiante::find($val->asistencia_estudiantes_id);
             $obj = new \stdClass;
-            $obj->start = $asistenciasEstudiante->fecha . ' ' . $horasAsistencia->inicio;
-            $obj->end = $asistenciasEstudiante->fecha . ' ' . $horasAsistencia->fin;
+            $obj->start = $val->fecha . ' ' . $horasAsistencia->inicio;
+            $obj->end = $val->fecha . ' ' . $horasAsistencia->fin;
             $obj->title = 'Asistencia';
             $obj->class = $val->estado == '1' ? 'bg-success-asistencia' : ($val->estado == '2' ? 'bg-warning-asistencia' : 'bg-danger-asistencia');
 
@@ -58,7 +74,12 @@ class AsistenciaController extends Controller
     public function rangoFechas()
     {
         $idEstudiante = Auth::user()->id;
-        $matricula = Matricula::where('estudiantes_id', $idEstudiante)->first();
+        $matricula = Matricula::actualDelEstudiante($idEstudiante);
+
+        if (!$matricula) {
+            return response()->json(null);
+        }
+
         $horasAsistencia = DB::table('carga_academicas as ca')
             ->select(
                 DB::raw('MAX(ph.hora_fin) as fin'),
@@ -67,6 +88,8 @@ class AsistenciaController extends Controller
             ->join('horarios as h', 'h.carga_academicas_id', 'ca.id')
             ->join('plantilla_horarios as ph', 'ph.id', 'h.plantilla_horarios_id')
             ->where('ca.grupo_aulas_id', $matricula->grupo_aulas_id)
+            ->where('ca.periodos_id', $matricula->periodos_id)
+            ->where('h.periodos_id', $matricula->periodos_id)
             ->first();
 
         return response()->json($horasAsistencia);

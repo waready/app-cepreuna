@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\web\TramitePago;
+namespace App\Http\Controllers\Web\TramitePago;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;

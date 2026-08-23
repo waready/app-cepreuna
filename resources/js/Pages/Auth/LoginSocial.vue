@@ -60,7 +60,7 @@
                 <div class="grid">
                     <div class="col-12 text-center">
                         <a :href="route('auth-redirect')">
-                            <Button type="button" class="p-button-outlined p-button-primary">
+                            <Button type="button" class="p-button-outlined p-button-info">
                                 <img alt="logo" src="/images/google-logo.svg" style="width: 1.5rem" />
                                 <span class="ml-2 font-bold">Ingresar con Google</span>
                             </Button>
@@ -137,7 +137,7 @@
             <div class="grid">
                 <div class="col-12 text-center">
                     <a :href="route('auth-redirect')">
-                        <Button type="button" class="p-button-outlined p-button-primary ">
+                        <Button type="button" class="p-button-outlined p-button-info">
                             <img alt="logo" src="/images/google-logo.svg" style="width: 1.5rem" />
                             <span class="ml-2 font-bold">Ingresar con Google</span>
                         </Button>
@@ -194,14 +194,12 @@ export default {
                 .post(this.route("login-singsuit.login"), {
                     onFinish: () => this.form.reset("password"),
                     onSuccess: (response) => {
-                        console.log(response.props.response);
-                        if(!response.props.response.status) {
-                            this.$refs.toast.add({ severity: "error", summary: "Error", detail: `${response.props.response.message}, apersonarce al CEPREUNA` || "Accesos Incorrectos.", life: 3000 });
+                        const authResponse = response.props?.response;
+                        if (authResponse?.status === false) {
+                            const detail = authResponse.message ? `${authResponse.message}, apersonarse al CEPREUNA.` : "Accesos incorrectos.";
+                            this.$refs.toast.add({ severity: "error", summary: "Error", detail, life: 3000 });
                             this.form.reset("password");
                         }
-                    },
-                    onError: (errors) => {
-                        console.log(errors); // Log de errores para depuración
                     },
                 });
         },

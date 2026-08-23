@@ -9,6 +9,7 @@ use Spatie\Permission\Models\Permission;
 use App\Models\DocenteApto;
 use App\Models\Estudiante;
 use App\Models\User;
+use App\Support\MediaUrl;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -66,9 +67,9 @@ class HandleInertiaRequests extends Middleware
             $data->materno = $usuario->docente->materno;
             $data->dni = $usuario->docente->nro_documento;
             $data->email = $usuario->usuario;
-            $data->profile_photo_path = env("EXTERNALURLIMAGE") . '/storage/fotos/' . $usuario->docente->foto;
+            $data->profile_photo_path = MediaUrl::profile($usuario->docente->foto);
             $data->profile_photo_url = "https://ui-avatars.com/api/?name=" . str_replace(" ", "+", $usuario->docente->nombres) . "&color=7F9CF5&background=EBF4FF";
-            $data->url = env("EXTERNALURLIMAGE");
+            $data->url = config('app.external_image_url');
         } elseif (Auth::guard('estudiante')->check()) {
             $usuario = Estudiante::find(Auth::guard('estudiante')->user()->id);
             $data = new \stdClass;
@@ -77,9 +78,9 @@ class HandleInertiaRequests extends Middleware
             $data->materno = $usuario->materno;
             $data->dni = $usuario->nro_documento;
             $data->email = $usuario->usuario;
-            $data->profile_photo_path = env("EXTERNALURLIMAGE") . '/storage/fotos/' . $usuario->foto;
+            $data->profile_photo_path = MediaUrl::profile($usuario->foto);
             $data->profile_photo_url = "https://ui-avatars.com/api/?name=" . str_replace(" ", "+", $usuario->nombres) . "&color=7F9CF5&background=EBF4FF";
-            $data->url = env("EXTERNALURLIMAGE");
+            $data->url = config('app.external_image_url');
         } elseif (Auth::check()) {
             $usuario = User::find(Auth::user()->id);
             $data = new \stdClass;
@@ -88,9 +89,9 @@ class HandleInertiaRequests extends Middleware
             $data->materno = $usuario->materno;
             $data->dni = $usuario->nro_documento;
             $data->email = $usuario->email;
-            $data->profile_photo_path = $usuario->profile_photo_path;
+            $data->profile_photo_path = MediaUrl::publicAsset($usuario->profile_photo_path);
             $data->profile_photo_url = "https://ui-avatars.com/api/?name=" . str_replace(" ", "+", $usuario->name) . "&color=7F9CF5&background=EBF4FF";
-            $data->url = env("EXTERNALURLIMAGE");
+            $data->url = config('app.external_image_url');
         }
         // dd(Auth::guard('docente')->check());
         return array_merge(parent::share($request), [

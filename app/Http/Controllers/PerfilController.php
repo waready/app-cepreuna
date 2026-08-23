@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdjuntoGrado;
+use App\Models\DocenteApto;
 use App\Models\Estudiante;
+use App\Models\InscripcionDocente;
 use App\Models\Pais;
+use App\Models\Periodo;
+use App\Support\MediaUrl;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,16 +21,30 @@ class PerfilController extends Controller
 {
     public function index()
     {
-        $dni = Auth::user()->nro_documento;
+        if (Auth::guard('docente')->check()) {
+            return $this->perfilDocente();
+        }
 
-        $estudiante = Estudiante::with(
+        $dni = Auth::user()->nro_documento;
+        $periodo = Periodo::actual();
+
+        $estudiante = Estudiante::with([
             'colegio',
             'ubigeo',
             'ubigeo_nacimiento',
-            'matricula'
-        )
+            'matricula' => function ($query) use ($periodo) {
+                if ($periodo) {
+                    $query->delPeriodoActual($periodo->id)->latest('id');
+                }
+            }
+        ])
             ->where('estudiantes.nro_documento', $dni)
-            ->whereHas('matricula', function (Builder $query) {
+            ->whereHas('matricula', function (Builder $query) use ($periodo) {
+                if ($periodo) {
+                    $query->delPeriodoActual($periodo->id);
+                    return;
+                }
+
                 $query->whereNotNull('matriculas.id');
             })
             ->first();
@@ -44,6 +63,42 @@ class PerfilController extends Controller
 
 
         return Inertia::render('Estudiante/Perfil', ["data" => $response]);
+    }
+
+    private function perfilDocente()
+    {
+        $periodo = Periodo::actual();
+        $docenteApto = DocenteApto::query()
+            ->with(['docente.tipoDocumento', 'docente.gradoAcademico', 'docente.programa'])
+            ->find(Auth::guard('docente')->id());
+
+        abort_unless(
+            $periodo
+                && $docenteApto
+                && $docenteApto->docente
+                && (int) $docenteApto->periodos_id === (int) $periodo->id,
+            403
+        );
+
+        $inscripcion = InscripcionDocente::query()
+            ->where('docentes_id', $docenteApto->docentes_id)
+            ->where('periodos_id', $periodo->id)
+            ->latest('id')
+            ->first();
+
+        $grados = $inscripcion
+            ? AdjuntoGrado::with(['gradoAcademico', 'programa'])
+                ->where('inscripcion_docentes_id', $inscripcion->id)
+                ->get()
+            : collect();
+
+        return Inertia::render('Docente/Perfil', [
+            'docente' => $docenteApto->docente,
+            'cuenta' => ['usuario' => $docenteApto->usuario],
+            'grados' => $grados,
+            'periodo' => $periodo,
+            'fotoPerfil' => MediaUrl::profile($docenteApto->docente->foto),
+        ]);
     }
     public function actualizarEstudiante(Request $request)
     {
@@ -130,7 +185,7 @@ class PerfilController extends Controller
     }
     public function save_image($base64_image, $id)
     {
-        $url = env("EXTERNALURLIMAGE") . '/api/perfil/guardar-foto/' . $id;
+        $url = config('app.external_image_url') . '/api/perfil/guardar-foto/' . $id;
         $request = array('foto' => $base64_image);
         $options = array(
             'http' => array(

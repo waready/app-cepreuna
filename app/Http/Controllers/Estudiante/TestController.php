@@ -57,8 +57,8 @@ class TestController extends Controller
         }
     
         // Obtener inscripción y estudiante
-        $inscripcion = Inscripciones::where('estudiantes_id', $idEstudiante)->first();
-        $periodo = Periodo::where('estado', '1')->first();
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
     
         $estudiante = $inscripcion ? $inscripcion->estudiante->load('colegio') : null;
     
@@ -222,15 +222,18 @@ class TestController extends Controller
         }
     
         // Obtener inscripción
-        $inscripcion = Inscripciones::with(['sede', 'area', 'turno'])
-            ->where('estudiantes_id', $id)
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::with(['sede', 'area', 'turno', 'periodo'])
+            ->delEstudiante($id)
+            ->delPeriodoActual(optional($periodo)->id)
+            ->latest('id')
             ->first();
     
         if (!$inscripcion) {
             return response()->json(['error' => 'Inscripción no encontrada'], 404);
         }
     
-        $periodo = Periodo::find($inscripcion->periodos_id);
+        $periodo = $inscripcion->periodo;
         if (!$periodo) {
             return response()->json(['error' => 'Periodo no encontrado'], 404);
         }
@@ -295,7 +298,7 @@ class TestController extends Controller
         
         $pdf->Ln(6);
         $pdf->SetFont('helvetica', '', 15);
-        $pdf->MultiCell(0, 6, "Ha participado de manera satisfactoria en el Test Vocacional correspondiente al ciclo Marzo – Julio 2025, organizado por el Centro de Estudios Preuniversitario de la Universidad Nacional del Altiplano – Puno(CEPREUNA).", 0, 'J');
+        $pdf->MultiCell(0, 6, "Ha participado de manera satisfactoria en el Test Vocacional correspondiente al ciclo {$ciclo}, organizado por el Centro de Estudios Preuniversitario de la Universidad Nacional del Altiplano – Puno(CEPREUNA).", 0, 'J');
         
         $pdf->Ln(6);
         $pdf->MultiCell(0, 6, 'La presente constancia se expide con fines de orientación vocacional , como testimonio de su participación en este proceso, el cual tiene como propósito brindar apoyo y guía a los postulantes interesados en los procesos de admisión a la Universidad Nacional del Altiplano – Puno.', 0, 'J');

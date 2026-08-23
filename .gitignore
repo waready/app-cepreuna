@@ -8,3 +8,7 @@
 /storage/framework/views/*
 log.txt
 .vscode
+/.artisan-serve*.log
+/.npm-watch*.log
+/.phpunit.result.cache
+/.tmp-deploy/

@@ -25,6 +25,14 @@ class LoginApoderadoController extends Controller
     {
         return Auth::guard($this->guard);
     }
+
+    protected function syncStudentRole(Estudiante $estudiante): void
+    {
+        if (! $estudiante->hasRole('Estudiante')) {
+            $estudiante->assignRole('Estudiante');
+        }
+    }
+
     public function login(Request $request){
         $rules = $request->validate([
             'paterno' => 'required',
@@ -97,9 +105,10 @@ class LoginApoderadoController extends Controller
 
 
             $this->guard = 'estudiante';
+            $this->syncStudentRole($estudiante);
             Auth::guard('estudiante')->login($estudiante);
             $token = $estudiante->createToken('auth-token')->plainTextToken;
-            return redirect('dashboard');
+            return redirect()->route('estudiantes.cursos');
 
             // dd($query);
         }else{

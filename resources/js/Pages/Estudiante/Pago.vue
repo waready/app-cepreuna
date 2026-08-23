@@ -67,6 +67,9 @@
                                     </div>
                                 </div>
                             </div>
+                            <div class="col-12 text-center pt-2">
+                                <Button label="Agregar voucher" icon="pi pi-upload" class="p-button-sm" @click="activeMenu(1)" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -77,6 +80,9 @@
                     </div>
                     <div class="col-12">
                         <Message severity="info" :closable="false">Recuerde que al pagar en el banco de la nación debe aumentar el monto de <b>S/ 1.00</b> de comisión por voucher.</Message>
+                        <InlineMessage v-if="parseFloat(datos.deuda || 0) <= 0" class="text-sm mb-3" severity="info">
+                            Puede adjuntar su comprobante para que sea validado.
+                        </InlineMessage>
                         <AgregarPago :dni="$page.props.usuario.dni" :url="datos.url" @result="resultPago = $event"></AgregarPago>
                         <div class="p-datatable p-component p-datatable-responsive-scroll p-datatable-sm p-datatable-striped" data-scrollselectors=".p-datatable-wrapper" pv_id_8="">
                             <div class="p-datatable-wrapper">
@@ -264,10 +270,13 @@
                         </div>
                         <div class="grid">
                             <div class="col-12">
-                                <Panel v-if="parseInt(datos.deuda) > 0" header="Añadir Voucher">
+                                <Panel header="Añadir Voucher">
                                     <Message severity="info" :closable="false"
                                         >Recuerde que al pagar en el banco de la nación debe aumentar el monto de <b>S/ 1.00</b> de comisión por voucher.</Message
                                     >
+                                    <InlineMessage v-if="parseFloat(datos.deuda || 0) <= 0" class="text-sm mb-3" severity="info">
+                                        Puede adjuntar su comprobante para que sea validado.
+                                    </InlineMessage>
                                     <AgregarPago :dni="$page.props.usuario.dni" :url="datos.url" @result="resultPago = $event"></AgregarPago>
                                     <div class="p-datatable p-component p-datatable-responsive-scroll p-datatable-sm p-datatable-striped" data-scrollselectors=".p-datatable-wrapper" pv_id_8="">
                                         <div class="p-datatable-wrapper">
@@ -312,7 +321,6 @@
                                         <Button v-if="resultPago.pago.length != 0" :loading="saveLoading" class="p-button-sm p-button-success" label="Guardar Pago" icon="pi pi-save" @click="submit" />
                                     </div>
                                 </Panel>
-                                <Message v-else severity="success" :closable="false"> Ud. no cuenta con deuda pendiente. </Message>
                             </div>
                             <div class="col-12 md:col-12" v-if="simulacro">
                                 <div class="grid">

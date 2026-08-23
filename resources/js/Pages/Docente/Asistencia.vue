@@ -55,7 +55,6 @@ import { ref, onMounted, watch, toRefs } from "vue";
 import axios from "axios";
 import VueCal from "vue-cal";
 import "vue-cal/dist/vuecal.css";
-import "vue-cal/dist/i18n/es.js";
 export default {
     // components: {
     //     AppTopBarMobile,
