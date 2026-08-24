@@ -18,6 +18,16 @@
                     </template>
                 </Column>
                 <Column field="grupo" header="Grupo"></Column>
+                <Column field="modalidad" header="Modalidad">
+                    <template #body="slotProps">
+                        <Tag
+                            class="modalidad-tag"
+                            :icon="modalidadIcon(slotProps.data.modalidad)"
+                            :severity="modalidadSeverity(slotProps.data.modalidad)"
+                            :value="slotProps.data.modalidad"
+                        />
+                    </template>
+                </Column>
                 <Column header="Auxiliar">
                     <template #body="slotProps">
                         <div v-if="slotProps.data.auxiliar" class="contacto-persona">
@@ -224,6 +234,8 @@ export default {
         const telefonoHref = (telefono) => {
             return "tel:" + String(telefono).replace(/[^\d+]/g, "");
         };
+        const modalidadSeverity = (modalidad) => (modalidad === "Virtual" ? "info" : "success");
+        const modalidadIcon = (modalidad) => (modalidad === "Virtual" ? "pi pi-desktop" : "pi pi-map-marker");
         const lugarDialog = ref(false);
         const lugar = ref({
             sede:"",
@@ -354,6 +366,8 @@ export default {
             json_fields,
             json_data,
             telefonoHref,
+            modalidadSeverity,
+            modalidadIcon,
         };
     },
 };
@@ -397,6 +411,11 @@ export default {
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+}
+
+.modalidad-tag {
+    min-width: 7.5rem;
+    justify-content: center;
 }
 
 @media (max-width: 1024px) {

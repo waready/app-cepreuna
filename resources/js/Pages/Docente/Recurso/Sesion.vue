@@ -19,6 +19,16 @@
                 <Column field="fecha" header="Fecha" :sortable="true"></Column>
                 <Column field="curso" header="Curso"></Column>
                 <Column field="grupo" header="Grupo"></Column>
+                <Column field="modalidad" header="Modalidad">
+                    <template #body="slotProps">
+                        <Tag
+                            class="modalidad-tag"
+                            :icon="modalidadIcon(slotProps.data.modalidad)"
+                            :severity="modalidadSeverity(slotProps.data.modalidad)"
+                            :value="slotProps.data.modalidad"
+                        />
+                    </template>
+                </Column>
                 <Column field="tema" header="Tema"></Column>
 
                 <Column field="id" header="Opciones">
@@ -36,7 +46,27 @@
                 <div class="col-12 md:col-12">
                     <div class="field p-fluid">
                         <label for="curso">Curso</label>
-                        <AutoComplete id="curso" v-model="selectedCursos" :suggestions="filteredCursos" @complete="searchCursos($event)" :dropdown="true" field="name" forceSelection />
+                        <AutoComplete
+                            id="curso"
+                            v-model="selectedCursos"
+                            :suggestions="filteredCursos"
+                            @complete="searchCursos($event)"
+                            :dropdown="true"
+                            field="name"
+                            forceSelection
+                        >
+                            <template #item="slotProps">
+                                <div class="curso-opcion">
+                                    <span class="curso-opcion-nombre">{{ slotProps.item.curso }} ({{ slotProps.item.grupo }})</span>
+                                    <Tag
+                                        class="modalidad-tag"
+                                        :icon="modalidadIcon(slotProps.item.modalidad)"
+                                        :severity="modalidadSeverity(slotProps.item.modalidad)"
+                                        :value="slotProps.item.modalidad"
+                                    />
+                                </div>
+                            </template>
+                        </AutoComplete>
                         <small class="p-error" v-if="errors.carga">{{ errors.carga }}</small>
                     </div>
                     <div class="field p-fluid">
@@ -126,7 +156,13 @@ export default {
             let fecha = new Date(item.fecha);
             fecha.setDate(fecha.getDate() + 1);
             form.fecha = fecha;
-            selectedCursos.value ={id:item.carga_academicas_id,name:item.curso+' ('+item.grupo+')'}
+            selectedCursos.value = {
+                id: item.carga_academicas_id,
+                curso: item.curso,
+                grupo: item.grupo,
+                modalidad: item.modalidad,
+                name: `${item.curso} (${item.grupo}) - ${item.modalidad}`,
+            };
 
             // axios
             // .get(route("docentes.recursos.sesiones-edit",item.id), {
@@ -232,11 +268,13 @@ export default {
             if (!event.query.trim().length) {
                 filteredCursos.value = [...cursos.value];
             } else {
-                filteredCursos.value = cursos.value.filter((country) => {
-                    return country.name.toLowerCase().startsWith(event.query.toLowerCase());
+                filteredCursos.value = cursos.value.filter((curso) => {
+                    return curso.name.toLowerCase().includes(event.query.toLowerCase());
                 });
             }
         };
+        const modalidadSeverity = (modalidad) => (modalidad === "Virtual" ? "info" : "success");
+        const modalidadIcon = (modalidad) => (modalidad === "Virtual" ? "pi pi-desktop" : "pi pi-map-marker");
         const closeBasic = () => {
             // lugarDialog.value = false;
             // estudianteDialog.value = false;
@@ -262,7 +300,9 @@ export default {
             save,
             selectedCursos,
             filteredCursos,
-            searchCursos
+            searchCursos,
+            modalidadSeverity,
+            modalidadIcon,
         };
     },
 };
@@ -271,5 +311,32 @@ export default {
 .turnos .p-timeline-event-opposite{
     min-width: 40px !important;
     flex: 0;
+}
+
+.modalidad-tag {
+    min-width: 7.5rem;
+    justify-content: center;
+}
+
+.curso-opcion {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.curso-opcion-nombre {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 576px) {
+    .curso-opcion {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
 }
 </style>

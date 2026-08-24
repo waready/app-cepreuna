@@ -52,7 +52,8 @@ class CursosController extends Controller
                 'l.denominacion as Local',
                 'l.direccion as DireccionLocal',
                 'l.foto as Foto',
-                's.denominacion as Sede'
+                's.denominacion as Sede',
+                DB::raw($this->modalidadSedeSql('s') . ' as modalidad')
             )
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
@@ -335,14 +336,18 @@ class CursosController extends Controller
             'sesiones.carga_academicas_id',
             'c.denominacion as curso',
             'sesiones.id',
-            'g.denominacion as grupo'
+            'g.denominacion as grupo',
+            DB::raw($this->modalidadSedeSql('s') . ' as modalidad')
         );
         // $data = $table->get(new Sesiones, );
 
         $data = $data->join('carga_academicas as ca', 'ca.id', 'sesiones.carga_academicas_id')
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
-            ->join('grupos as g', 'g.id', 'ga.grupos_id');
+            ->join('grupos as g', 'g.id', 'ga.grupos_id')
+            ->join('aulas as au', 'au.id', 'ga.aulas_id')
+            ->join('locales as l', 'l.id', 'au.locales_id')
+            ->join('sedes as s', 's.id', 'l.sedes_id');
 
         $data = $data
             ->where('sesiones.periodos_id', $periodo->id)
@@ -368,15 +373,18 @@ class CursosController extends Controller
         [$docenteApto, $periodo] = $contexto;
         $cargaAcademica = DB::table('carga_academicas as ca')
             ->select(
-                DB::raw('CONCAT(c.denominacion," (",g.denominacion,")") as name'),
-                // 'c.id as idCurso',
-                'ca.id as id',
-                // 'ca.estado'
+                'c.denominacion as curso',
+                'g.denominacion as grupo',
+                DB::raw($this->modalidadSedeSql('s') . ' as modalidad'),
+                'ca.id as id'
             )
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
             ->join('areas as a', 'a.id', 'ga.areas_id')
+            ->join('aulas as au', 'au.id', 'ga.aulas_id')
+            ->join('locales as l', 'l.id', 'au.locales_id')
+            ->join('sedes as s', 's.id', 'l.sedes_id')
             ->where([
                 ['ca.docentes_id', $docenteApto->docentes_id],
                 ['ca.estado', '1'],
@@ -384,7 +392,17 @@ class CursosController extends Controller
             ])
             ->orderBy('c.denominacion')
             ->orderBy('g.denominacion')
-            ->get();
+            ->get()
+            ->map(function ($carga) {
+                $carga->name = sprintf(
+                    '%s (%s) - %s',
+                    $carga->curso,
+                    $carga->grupo,
+                    $carga->modalidad
+                );
+
+                return $carga;
+            });
 
         return response()->json($cargaAcademica);
     }
@@ -570,6 +588,11 @@ class CursosController extends Controller
                 $query->where('estado', '1');
             })
             ->first();
+    }
+
+    private function modalidadSedeSql(string $alias): string
+    {
+        return "CASE WHEN {$alias}.id = 1 OR LOWER(COALESCE({$alias}.denominacion, '')) LIKE '%virtual%' THEN 'Virtual' ELSE 'Presencial' END";
     }
 
     private function obtenerCurriculasPorArea(array $areaIds)
