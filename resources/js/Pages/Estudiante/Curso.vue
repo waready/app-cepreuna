@@ -31,61 +31,50 @@
                         <AccordionTab v-for="carga in cargas" :key="carga.id">
                             <template #header>
                                 <div class="curso-nombre">
-                                    <i class="pi pi-bookmark-fill" :style="{ color: carga.curso.color, fontSize: '19px' }"></i> {{ carga.curso.denominacion }}
+                                    <i class="pi pi-bookmark-fill curso-icono" :style="{ color: carga.curso.color, fontSize: '19px' }"></i>
+                                    <span class="curso-nombre-texto">{{ carga.curso.denominacion }}</span>
                                     <i style="color: rgb(25, 234, 133)" v-if="carga.encuesta_realizada" class="pi pi-circle-on"></i>
                                 </div>
                             </template>
-                            <table v-if="carga.docente" class="curso-detalle">
-                                <tbody>
-                                <tr>
-                                    <th>Docente:</th>
-                                    <td>
-                                        <span>{{ carga.docente.paterno }} {{ carga.docente.materno }} {{ carga.docente.nombres }}</span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Condición:</th>
-                                    <td>
-                                        <span v-if="carga.tipo == '2'">Remplazo</span>
-                                        <span v-else>Titular</span>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Meet:</th>
-                                    <td>
-                                        <a :href="carga.link" target="_blank" rel="noopener">
-                                            <Tag icon="pi pi-video" severity="Primary" value="Ir a Meet"></Tag>
+                            <div v-if="carga.docente" class="curso-detalle">
+                                <div class="curso-dato curso-dato-docente">
+                                    <span class="curso-etiqueta">Docente</span>
+                                    <span class="curso-valor">{{ carga.docente.paterno }} {{ carga.docente.materno }} {{ carga.docente.nombres }}</span>
+                                </div>
+                                <div class="curso-dato">
+                                    <span class="curso-etiqueta">Condición</span>
+                                    <span class="curso-valor" v-if="carga.tipo == '2'">Remplazo</span>
+                                    <span class="curso-valor" v-else>Titular</span>
+                                </div>
+                                <div class="curso-dato">
+                                    <span class="curso-etiqueta">Meet</span>
+                                    <span class="curso-valor">
+                                        <a v-if="carga.link" :href="carga.link" target="_blank" rel="noopener">
+                                            <Tag icon="pi pi-video" severity="info" value="Ir a Meet"></Tag>
                                         </a>
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Encuesta:</th>
-                                    <td>
-                                        <a>
-                                            <Tag
-                                                icon="pi pi-check-square"
-                                                severity="success"
-                                                value="Calificar"
-                                                v-if="carga.grupo_aula.estado_encuesta == '1' && !carga.encuesta_realizada"
-                                                @click="calificar(carga)"
-                                                style="cursor: pointer"
-                                            >
-                                            </Tag>
-                                            <Tag icon="pi pi-check" v-if="carga.encuesta_realizada" :disabled="true" style="cursor: not-allowed" class="bg-gray-500">Calificado</Tag>
-                                        </a>
-                                    </td>
-                                </tr>
-                                </tbody>
-                            </table>
-                            <table v-else>
-                                <tbody>
-                                <tr>
-                                    <td>
-                                        <Tag class="mr-2 bg-gray-500">Docente no Asignado</Tag>
-                                    </td>
-                                </tr>
-                                </tbody>
-                            </table>
+                                        <span v-else class="curso-sin-dato">Sin enlace</span>
+                                    </span>
+                                </div>
+                                <div class="curso-dato">
+                                    <span class="curso-etiqueta">Encuesta</span>
+                                    <span class="curso-valor">
+                                        <Tag
+                                            icon="pi pi-check-square"
+                                            severity="success"
+                                            value="Calificar"
+                                            v-if="carga.grupo_aula.estado_encuesta == '1' && !carga.encuesta_realizada"
+                                            @click="calificar(carga)"
+                                            style="cursor: pointer"
+                                        >
+                                        </Tag>
+                                        <Tag icon="pi pi-check" v-else-if="carga.encuesta_realizada" :disabled="true" style="cursor: not-allowed" class="bg-gray-500">Calificado</Tag>
+                                        <span v-else class="curso-sin-dato">No disponible</span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div v-else class="curso-sin-docente">
+                                <Tag class="bg-gray-500">Docente no asignado</Tag>
+                            </div>
                         </AccordionTab>
                     </Accordion>
                 </div>
@@ -375,28 +364,75 @@ export default {
 </script>
 <style scoped>
 .acordion .curso-nombre {
+    display: flex;
+    width: 100%;
+    min-width: 0;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.curso-icono {
+    flex: 0 0 auto;
+}
+
+.curso-nombre-texto {
     min-width: 0;
     overflow-wrap: anywhere;
     line-height: 1.35;
 }
-table {
-    line-height: 1.8;
-}
-table th {
-    float: right;
-}
 
 .curso-detalle {
+    display: grid;
     width: 100%;
+    grid-template-columns: minmax(16rem, 2fr) repeat(3, minmax(8rem, 1fr));
+    gap: 0.75rem;
 }
 
-.curso-detalle th {
-    width: 7rem;
-    padding-right: 0.75rem;
+.curso-dato {
+    display: flex;
+    min-width: 0;
+    min-height: 4.5rem;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--surface-border);
+    border-radius: 9px;
+    background: var(--surface-50);
 }
 
-.curso-detalle td {
+.curso-etiqueta {
+    color: var(--text-color-secondary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
+}
+
+.curso-valor {
+    min-width: 0;
+    color: var(--text-color);
     overflow-wrap: anywhere;
+    line-height: 1.35;
+}
+
+.curso-sin-dato {
+    color: var(--text-color-secondary);
+    font-size: 0.9rem;
+}
+
+.curso-sin-docente {
+    width: 100%;
+    padding: 0.5rem 0;
+}
+
+@media (max-width: 900px) {
+    .curso-detalle {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .curso-dato-docente {
+        grid-column: 1 / -1;
+    }
 }
 
 @media (max-width: 576px) {
@@ -404,10 +440,37 @@ table th {
         padding: 0;
     }
 
-    .curso-detalle th {
-        width: 5.75rem;
-        padding-right: 0.5rem;
-        text-align: left;
+    .curso-detalle {
+        display: block;
+    }
+
+    .curso-dato {
+        display: grid;
+        min-height: 0;
+        grid-template-columns: 6.75rem minmax(0, 1fr);
+        gap: 0.75rem;
+        align-items: start;
+        padding: 0.65rem 0;
+        border: 0;
+        border-bottom: 1px solid var(--surface-border);
+        border-radius: 0;
+        background: transparent;
+    }
+
+    .curso-dato:first-child {
+        padding-top: 0;
+    }
+
+    .curso-dato:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+    }
+
+    .curso-etiqueta {
+        color: var(--text-color);
+        font-size: 0.95rem;
+        letter-spacing: 0;
+        text-transform: none;
     }
 
     .calificacion-dialog :deep(.grid > .col-3) {
