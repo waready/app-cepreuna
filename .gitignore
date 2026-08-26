@@ -12,3 +12,8 @@ log.txt
 /.npm-watch*.log
 /.phpunit.result.cache
 /.tmp-deploy/
+
+# Metadatos que Windows adjunta a los archivos descargados.
+# No son contenido, y su nombre lleva ":", que Windows no admite como
+# nombre de archivo: si se commitean, el repo deja de poder clonarse ahi.
+*:Zone.Identifier
