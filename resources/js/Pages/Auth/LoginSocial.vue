@@ -43,8 +43,15 @@
                             <span class="p-inputgroup-addon">
                                 <i class="pi pi-lock"></i>
                             </span>
-                            <Password id="password" v-model="form.password" toggleMask :feedback="false"
+                            <InputText id="password" v-model="form.password"
+                                :type="showPassword ? 'text' : 'password'" autocomplete="current-password"
                                 @keydown.enter="submit()" />
+                            <button type="button" class="p-inputgroup-addon password-toggle"
+                                :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                :title="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                @click="showPassword = !showPassword">
+                                <i :class="['pi', showPassword ? 'pi-eye-slash' : 'pi-eye']"></i>
+                            </button>
                         </div>
                         <small v-show="errors.password !== null" class="p-error">{{ errors.password }}</small>
                     </div>
@@ -70,7 +77,7 @@
             </template>
             <template #footer>
                 <div class="text-center">
-                    <small><em>APP CEPREUNA v. 1.0 © 2024 todos los derechos reservados </em></small>
+                    <small><em>APP CEPREUNA v. 1.0 © {{ currentYear }} todos los derechos reservados </em></small>
                 </div>
             </template>
         </Card>
@@ -114,13 +121,20 @@
                 </div>
 
                 <div class="field col-12 px-2 my-1">
-                    <label for="password">Contraseña</label>
+                    <label for="mobile-password">Contraseña</label>
                     <div class="p-inputgroup">
                         <span class="p-inputgroup-addon">
                             <i class="pi pi-lock"></i>
                         </span>
-                        <Password id="mobile-password" v-model="form.password" toggleMask :feedback="false" autocomplete="current-password"
+                        <InputText id="mobile-password" v-model="form.password"
+                            :type="showPassword ? 'text' : 'password'" autocomplete="current-password"
                             @keydown.enter="submit()" />
+                        <button type="button" class="p-inputgroup-addon password-toggle"
+                            :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                            :title="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                            @click="showPassword = !showPassword">
+                            <i :class="['pi', showPassword ? 'pi-eye-slash' : 'pi-eye']"></i>
+                        </button>
                     </div>
                     <small v-show="errors.password !== null" class="p-error">{{ errors.password }}</small>
                 </div>
@@ -150,7 +164,7 @@
             </div> -->
             <div class="fluid">
                 <div class="text-center mt-4">
-                    <small class="mobile-login-footer text-xs"><em>APP CEPREUNA v. 1.0 © 2024 todos los derechos reservados </em></small>
+                    <small class="mobile-login-footer text-xs"><em>APP CEPREUNA v. 1.0 © {{ currentYear }} todos los derechos reservados </em></small>
                 </div>
             </div>
         </div>
@@ -172,6 +186,8 @@ export default {
 
     data() {
         return {
+            currentYear: new Date().getFullYear(),
+            showPassword: false,
             form: this.$inertia.form({
                 email: "",
                 password: "",
@@ -206,6 +222,20 @@ export default {
 };
 </script>
 <style scoped>
+.password-toggle {
+    cursor: pointer;
+    color: var(--text-color-secondary);
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
+}
+
+.password-toggle:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+}
+
 @media screen and (max-width: 576px) {
     .display-mobile {
         display: flex !important;
