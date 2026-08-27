@@ -123,7 +123,13 @@ class PagoController extends Controller
                 $descuento = '';
                 break;
         }
-        $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", "<=", $response['cronograma']->nro_cuota]])->get();
+        $tarifaEstudiante = TarifaEstudiante::where([
+            ["estudiantes_id", $idEstudiante],
+            ["periodos_id", $periodo->id],
+            ["nro_cuota", "<=", $response['cronograma']->nro_cuota]
+        ])
+            ->orderBy("nro_cuota", "asc")
+            ->get();
         $deuda = 0;
         foreach ($tarifaEstudiante as $key => $value) {
 
@@ -134,7 +140,10 @@ class PagoController extends Controller
                 if ($value->monto - $value->pagado <= 0) {
                     $deuda = 0;
                 } else {
-                    $crono = CronogramaPago::where("nro_cuota", $value->nro_cuota)->first();
+                    $crono = CronogramaPago::where([
+                        ["periodos_id", $periodo->id],
+                        ["nro_cuota", $value->nro_cuota]
+                    ])->first();
                     if (date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin))) {
                         $deuda = $deuda + $value->monto - $value->pagado;
                     } else {
@@ -146,7 +155,12 @@ class PagoController extends Controller
         $response['deuda'] = number_format($deuda, 2);
         $response['tipo_descuento'] = $descuento;
         $response['vouchers'] = $this->getVouchersPago();
-        $response['tarifario'] = $tarifaEstudiante = TarifaEstudiante::where("estudiantes_id", $idEstudiante)->get();
+        $response['tarifario'] = TarifaEstudiante::where([
+            ["estudiantes_id", $idEstudiante],
+            ["periodos_id", $periodo->id]
+        ])
+            ->orderBy("nro_cuota", "asc")
+            ->get();
         $response['url'] = config('app.external_image_url');
         $estudiante = Estudiante::where('estudiantes.id', $idEstudiante)->first();
 
@@ -524,7 +538,14 @@ class PagoController extends Controller
                                 $mensualPago->save();
                                 // ambas validaciones correctas
                                 // SELECT * FROM tarifa_estudiantes AS te WHERE te.monto != te.pagado AND te.estudiantes_id=14 ORDER BY te.id ASC LIMIT 1;
-                                $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], [DB::raw("monto"), "!=", DB::raw("pagado")]])->orderBy("id", "asc")->get();
+                                $tarifaEstudiante = TarifaEstudiante::where([
+                                    ["estudiantes_id", $idEstudiante],
+                                    ["periodos_id", $inscripcion->periodos_id]
+                                ])
+                                    ->whereColumn("monto", "!=", "pagado")
+                                    ->orderBy("nro_cuota", "asc")
+                                    ->orderBy("id", "asc")
+                                    ->get();
                                 $deudaCuota = 0;
                                 // $pagoActual =
                                 if ($bancoPagoValidacion->cuenta == '0701010736') {
@@ -536,7 +557,10 @@ class PagoController extends Controller
                                 foreach ($tarifaEstudiante as $key => $tarifa) {
                                     $deudaCuota = $tarifa->monto - $tarifa->pagado;
                                     // $pagar = $validarDocumento->imp_pag
-                                    $crono = CronogramaPago::where("nro_cuota", $tarifa->nro_cuota)->first();
+                                    $crono = CronogramaPago::where([
+                                        ["periodos_id", $inscripcion->periodos_id],
+                                        ["nro_cuota", $tarifa->nro_cuota]
+                                    ])->first();
                                     if (strtotime($validarDocumento->fch_pag) > strtotime($crono->fin)) {
 
                                         if ($restoActual >= $deudaCuota + 30) {
@@ -578,7 +602,11 @@ class PagoController extends Controller
                                 }
 
                                 if ($restoActual > 0) {
-                                    $storeTarifa = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", 4]])->orderBy("id", "asc")->first();
+                                    $storeTarifa = TarifaEstudiante::where([
+                                        ["estudiantes_id", $idEstudiante],
+                                        ["periodos_id", $inscripcion->periodos_id],
+                                        ["nro_cuota", 4]
+                                    ])->orderBy("id", "asc")->first();
                                     $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
                                     $storeTarifa->save();
                                 }
