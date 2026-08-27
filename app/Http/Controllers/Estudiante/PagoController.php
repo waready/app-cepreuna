@@ -164,11 +164,12 @@ class PagoController extends Controller
         $response['url'] = config('app.external_image_url');
         $estudiante = Estudiante::where('estudiantes.id', $idEstudiante)->first();
 
-        $json = file_get_contents('data_puntaje.json');
-        $obj = json_decode($json);
-        $key = array_search($estudiante->nro_documento, array_column($obj, 'user'));
+        $puntajesPath = public_path('data_puntaje.json');
+        $json = is_file($puntajesPath) ? file_get_contents($puntajesPath) : false;
+        $obj = $json === false ? [] : (json_decode($json) ?: []);
+        $key = array_search($estudiante->nro_documento, array_column($obj, 'user'), true);
         // dd();
-        if (!$key) {
+        if ($key === false) {
             $response["simulacro"] = false;
             $response["usuario"] = "";
             $response["puntaje"] = "";
