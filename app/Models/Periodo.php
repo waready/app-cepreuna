@@ -6,6 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Periodo extends Model
 {
+    public function lotesBancoPreguntas()
+    {
+        return $this->hasMany(BancoPreguntaLote::class, 'periodos_id');
+    }
+
     public function scopeActivo($query)
     {
         return $query->where(function ($query) {

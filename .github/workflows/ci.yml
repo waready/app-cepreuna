@@ -44,6 +44,7 @@ jobs:
         run: |
           php artisan test tests/Unit
           php artisan test tests/Feature/DocenteModulesTest.php
+          php artisan test tests/Feature/BancoPreguntasSchemaTest.php
 
       - name: Configurar Node
         uses: actions/setup-node@v4

@@ -9,6 +9,11 @@ class Docente extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
+    public function lotesBancoPreguntas()
+    {
+        return $this->hasMany(BancoPreguntaLote::class, 'docentes_id');
+    }
+
     public function tipoDocumento()
     {
         return $this->belongsTo('App\Models\TipoDocumento', 'tipo_documentos_id');
