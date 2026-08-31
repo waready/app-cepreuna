@@ -276,6 +276,16 @@ export default {
                             to: "docentes.recursos.sesiones",
                             permission: "panel docente",
                         },
+                        {
+                            label: "Banco de preguntas",
+                            path: "preguntas-demo",
+                            icon: "pi pi-fw pi-circle-off",
+                            sizeIcon: "7px",
+                            to: "docentes.recursos.preguntas-demo",
+                            permission: "panel docente",
+                            badge: "Demo",
+                            visible: () => this.$page.props.features?.docente_preguntas_demo === true,
+                        },
                     ],
                 },
                 {

@@ -9,6 +9,7 @@ use App\Models\CargaAcademica;
 use App\Models\DocenteApto;
 use App\Models\Sesiones;
 use App\Services\GrupoAulaContactService;
+use App\Support\DocentePreguntasDemoAccess;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -158,5 +159,44 @@ class DocenteModulesTest extends TestCase
         $this->assertCount(2, $resultado->dias);
         $this->assertSame($horario, $resultado->dias[0]->disponibilidad[0]->horario);
         $this->assertNull($resultado->dias[1]->disponibilidad[0]->horario);
+    }
+
+    public function test_el_demo_de_preguntas_esta_apagado_por_defecto()
+    {
+        config()->set('features.docente_preguntas_demo.enabled', false);
+        config()->set('features.docente_preguntas_demo.docentes_ids', ['52']);
+
+        $cuenta = new DocenteApto();
+        $cuenta->docentes_id = 52;
+
+        $this->assertFalse(app(DocentePreguntasDemoAccess::class)->permite($cuenta));
+    }
+
+    public function test_el_demo_de_preguntas_solo_admite_docentes_seleccionados()
+    {
+        config()->set('features.docente_preguntas_demo.enabled', true);
+        config()->set('features.docente_preguntas_demo.docentes_ids', ['52', '64']);
+
+        $seleccionado = new DocenteApto();
+        $seleccionado->docentes_id = 52;
+
+        $noSeleccionado = new DocenteApto();
+        $noSeleccionado->docentes_id = 80;
+
+        $acceso = app(DocentePreguntasDemoAccess::class);
+
+        $this->assertTrue($acceso->permite($seleccionado));
+        $this->assertFalse($acceso->permite($noSeleccionado));
+    }
+
+    public function test_la_ruta_del_demo_es_solo_lectura_y_exige_la_lista_blanca()
+    {
+        $route = app('router')->getRoutes()->getByName('docentes.recursos.preguntas-demo');
+
+        $this->assertNotNull($route);
+        $this->assertSame(['GET', 'HEAD'], $route->methods());
+        $this->assertContains('auth:docente', $route->gatherMiddleware());
+        $this->assertContains('permission:panel docente', $route->gatherMiddleware());
+        $this->assertContains('docente.preguntas.demo', $route->gatherMiddleware());
     }
 }

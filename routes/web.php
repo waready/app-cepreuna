@@ -21,6 +21,7 @@ use App\Http\Controllers\Auth\Login\LoginApoderadoController;
 use App\Http\Controllers\Web\TramitePago\TramitePagoController;
 use App\Http\Controllers\Web\DocenteApto\DocenteAptoController;
 use App\Http\Controllers\Docente\CursosController as CursosDocente;
+use App\Http\Controllers\Docente\PreguntasDemoController;
 
 //Social Network
 use App\Http\Controllers\RedSocial\PublicationController;
@@ -285,6 +286,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                             Route::get('/get-cursos-carga', [CursosDocente::class , 'getCursosCarga'])->name('docentes.recursos.get-cursos-carga');
                             Route::post('/store-sesion', [CursosDocente::class , 'storeSesion'])->name('docentes.recursos.store-sesion');
                             Route::put('/update-sesion/{id}', [CursosDocente::class , 'updateSesion'])->name('docentes.recursos.update-sesion');
+                            Route::get('/preguntas-demo', [PreguntasDemoController::class, 'index'])
+                                ->middleware('docente.preguntas.demo')
+                                ->name('docentes.recursos.preguntas-demo');
                         //Route::put('update-sesion/{id}', 'Web\Docente\CursosController@updateSesion');
                         }
                         );

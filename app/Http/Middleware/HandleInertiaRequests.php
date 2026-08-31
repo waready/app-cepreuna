@@ -9,6 +9,7 @@ use Spatie\Permission\Models\Permission;
 use App\Models\DocenteApto;
 use App\Models\Estudiante;
 use App\Models\User;
+use App\Support\DocentePreguntasDemoAccess;
 use App\Support\MediaUrl;
 
 class HandleInertiaRequests extends Middleware
@@ -97,7 +98,11 @@ class HandleInertiaRequests extends Middleware
         return array_merge(parent::share($request), [
             'permissions' => Auth::check() ? $this->permissions() : null,
             'response' => $request->session()->get('response'),
-            'usuario' => $data
+            'usuario' => $data,
+            'features' => [
+                'docente_preguntas_demo' => app(DocentePreguntasDemoAccess::class)
+                    ->permite(Auth::guard('docente')->user()),
+            ],
         ]);
     }
 }
