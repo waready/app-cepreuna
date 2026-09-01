@@ -1,64 +1,83 @@
-# Banco de preguntas para docentes
+# Entrega y revision de preguntas en Word
 
 ## Estado actual
 
-El modulo sigue siendo un demo oculto. Las migraciones de este documento estan
-versionadas, pero no se han ejecutado en ningun ambiente y no existe escritura
-desde la interfaz.
+El modulo permanece oculto y apagado. El codigo, las migraciones y la plantilla
+estan versionados, pero no se ha ejecutado ninguna migracion ni se ha modificado
+la base de datos instalada.
 
-## Almacenamiento propuesto
+El archivo `MODELO DE PREGUNTAS Y RECOMENDACIONES.docx` entregado por el usuario
+se usa como referencia y plantilla descargable. Sus indicaciones no sustituyen
+las reglas de la aplicacion.
+
+## Flujo funcional
+
+1. Un docente incluido en la lista permitida ingresa al modulo.
+2. Selecciona uno de sus cursos activos del periodo actual, semana y nivel.
+3. Adjunta un unico archivo `.docx` de hasta 10 MB.
+4. Confirma que el documento contiene exactamente dos preguntas.
+5. La entrega queda en `en_revision` y el archivo se almacena de forma privada.
+6. Un usuario revisor autorizado descarga el Word y registra una decision:
+   `aprobado`, `observado` o `rechazado`.
+7. Si queda `observado`, el docente puede presentar una nueva version para el
+   mismo curso y semana. Las versiones anteriores se conservan.
+
+La cantidad de preguntas se confirma en el formulario y se valida manualmente
+durante la revision. No se intenta contar preguntas automaticamente dentro del
+Word, porque su contenido puede incluir tablas, formulas e imagenes.
+
+## Formato solicitado
+
+Cada Word debe conservar la estructura del modelo y contener:
+
+- Exactamente 2 preguntas del curso, nivel y silabo correspondiente.
+- Cinco alternativas identificadas de A a E.
+- Respuesta correcta resaltada.
+- Justificacion o solucion de cada pregunta.
+- Bibliografia con autor, anio, titulo y editorial.
+- Imagenes legibles cuando sean necesarias; en Matematica, Fisica y Quimica la
+  solucion puede incorporarse como fotografia.
+
+El Excel `carga-cursos-horas (2).xlsx` se considero solo como referencia de la
+carga proporcionada. No se importa a las tablas. La aplicacion consulta las
+cargas academicas vigentes de la base para evitar asignaciones desactualizadas
+o de otro periodo.
+
+## Persistencia propuesta
 
 ### `banco_pregunta_lotes`
 
-Representa una entrega de un docente para un curso y periodo determinados.
-Guarda la version y el flujo de revision:
+Representa cada entrega Word. Guarda periodo, curso, docente, semana, nivel,
+cantidad declarada de preguntas, version, metadatos del archivo, estado y datos
+de la ultima revision.
 
-- `borrador`
-- `en_revision`
-- `aprobado`
-- `observado`
+La combinacion periodo, curso, docente, semana y version es unica.
 
-La combinacion periodo, curso, docente y version es unica. Esto permite conservar
-entregas anteriores sin mezclar preguntas de ciclos distintos.
+### `banco_pregunta_revisiones`
 
-### `banco_preguntas`
+Conserva el historial auditable de decisiones. Registra usuario, accion,
+comentario y, opcionalmente, una version Word corregida por el revisor.
 
-Contiene el tema, enunciado, tipo, dificultad, explicacion, orden y estado de cada
-pregunta. Cada registro pertenece a un lote.
-
-Las imagenes no se guardaran como binario en MySQL. El archivo se almacenara en:
+Los documentos no se exponen mediante `public/storage`. Se guardan en:
 
 ```text
-storage/app/public/banco-preguntas/{periodo_id}/{docente_id}/{uuid}.webp
+storage/app/banco-preguntas/{periodo_id}/{docente_id}/
 ```
 
-La columna `imagen_path` conservara unicamente la ruta relativa.
+Solo se descargan mediante controladores que verifican la identidad del docente
+o la lista administrativa de revisores.
 
-### `banco_pregunta_alternativas`
+## Activacion futura
 
-Guarda las alternativas A-D de cada pregunta, su orden y la marca
-`es_correcta`. La validacion de la aplicacion debera asegurar que exista una sola
-respuesta correcta por pregunta.
+Antes de habilitar el modulo se debe:
 
-## Seguridad prevista
+1. Aprobar el flujo y respaldar la base de datos.
+2. Ejecutar exclusivamente las dos migraciones con prefijo `2026_08_31`.
+3. Configurar los docentes en `DOCENTE_PREGUNTAS_DOCENTES_IDS`.
+4. Configurar los usuarios revisores en `BANCO_PREGUNTAS_REVISORES_IDS`.
+5. Activar `DOCENTE_PREGUNTAS_DEMO_ENABLED=true` y
+   `BANCO_PREGUNTAS_REVISION_ENABLED=true`.
+6. Validar carga, descarga, observacion y reenvio en un ambiente de prueba.
 
-- Solo los docentes incluidos en `DOCENTE_PREGUNTAS_DOCENTES_IDS` podran acceder.
-- El docente solo podra usar cursos asignados en el periodo activo.
-- El guardado definitivo se realizara en una transaccion para crear lote,
-  preguntas y alternativas de forma atomica.
-- Un lote enviado a revision quedara bloqueado para el docente.
-- Las revisiones se asociaran a un usuario administrativo en `revisado_por`.
-
-## Habilitacion futura
-
-Antes de activar el modulo se debe:
-
-1. Revisar y aprobar el esquema.
-2. Respaldar la base de datos.
-3. Ejecutar exclusivamente las tres migraciones del banco de preguntas.
-4. Implementar y probar el guardado transaccional y la carga de imagenes.
-5. Configurar los docentes seleccionados.
-6. Activar `DOCENTE_PREGUNTAS_DEMO_ENABLED=true`.
-
-No se debe ejecutar `php artisan migrate` en produccion hasta completar estos
-pasos.
+No se debe ejecutar `php artisan migrate` ni activar las banderas en produccion
+sin completar estos pasos.

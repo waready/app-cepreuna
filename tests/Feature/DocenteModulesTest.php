@@ -8,7 +8,9 @@ use App\Http\Middleware\EnsureCurrentTeacherPeriod;
 use App\Models\CargaAcademica;
 use App\Models\DocenteApto;
 use App\Models\Sesiones;
+use App\Models\User;
 use App\Services\GrupoAulaContactService;
+use App\Support\BancoPreguntasRevisionAccess;
 use App\Support\DocentePreguntasDemoAccess;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -189,14 +191,63 @@ class DocenteModulesTest extends TestCase
         $this->assertFalse($acceso->permite($noSeleccionado));
     }
 
-    public function test_la_ruta_del_demo_es_solo_lectura_y_exige_la_lista_blanca()
+    public function test_las_rutas_de_entrega_exigen_guard_permiso_y_lista_blanca()
     {
-        $route = app('router')->getRoutes()->getByName('docentes.recursos.preguntas-demo');
+        $rutas = [
+            'docentes.recursos.preguntas-demo' => ['GET', 'HEAD'],
+            'docentes.recursos.preguntas-demo.plantilla' => ['GET', 'HEAD'],
+            'docentes.recursos.preguntas-demo.download' => ['GET', 'HEAD'],
+            'docentes.recursos.preguntas-demo.download-revision' => ['GET', 'HEAD'],
+            'docentes.recursos.preguntas-demo.store' => ['POST'],
+        ];
 
-        $this->assertNotNull($route);
-        $this->assertSame(['GET', 'HEAD'], $route->methods());
-        $this->assertContains('auth:docente', $route->gatherMiddleware());
-        $this->assertContains('permission:panel docente', $route->gatherMiddleware());
-        $this->assertContains('docente.preguntas.demo', $route->gatherMiddleware());
+        foreach ($rutas as $nombre => $metodos) {
+            $route = app('router')->getRoutes()->getByName($nombre);
+
+            $this->assertNotNull($route);
+            $this->assertSame($metodos, $route->methods());
+            $this->assertContains('auth:docente', $route->gatherMiddleware());
+            $this->assertContains('permission:panel docente', $route->gatherMiddleware());
+            $this->assertContains('docente.preguntas.demo', $route->gatherMiddleware());
+        }
+    }
+
+    public function test_la_revision_esta_apagada_y_limitada_a_usuarios_seleccionados()
+    {
+        $usuario = new User();
+        $usuario->id = 17;
+
+        config()->set('features.banco_preguntas_revision.enabled', false);
+        config()->set('features.banco_preguntas_revision.usuarios_ids', ['17']);
+        $this->assertFalse(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
+
+        config()->set('features.banco_preguntas_revision.enabled', true);
+        $this->assertTrue(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
+        $this->assertFalse(
+            app(BancoPreguntasRevisionAccess::class)->permite(new DocenteApto())
+        );
+
+        $usuario->id = 18;
+        $this->assertFalse(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
+    }
+
+    public function test_las_rutas_de_revision_exigen_la_lista_blanca_administrativa()
+    {
+        $rutas = [
+            'banco-preguntas.revision.index' => ['GET', 'HEAD'],
+            'banco-preguntas.revision.download' => ['GET', 'HEAD'],
+            'banco-preguntas.revision.download-revision' => ['GET', 'HEAD'],
+            'banco-preguntas.revision.decision' => ['POST'],
+        ];
+
+        foreach ($rutas as $nombre => $metodos) {
+            $route = app('router')->getRoutes()->getByName($nombre);
+
+            $this->assertNotNull($route);
+            $this->assertSame($metodos, $route->methods());
+            $this->assertContains('auth:sanctum', $route->gatherMiddleware());
+            $this->assertContains('verified', $route->gatherMiddleware());
+            $this->assertContains('banco.preguntas.revision', $route->gatherMiddleware());
+        }
     }
 }

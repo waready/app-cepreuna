@@ -3,11 +3,19 @@
 namespace App\Http\Controllers\Docente;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreBancoPreguntaLoteRequest;
+use App\Models\BancoPreguntaLote;
+use App\Models\BancoPreguntaRevision;
 use App\Models\Periodo;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use RuntimeException;
+use Throwable;
 
 class PreguntasDemoController extends Controller
 {
@@ -23,9 +31,199 @@ class PreguntasDemoController extends Controller
 
         abort_unless($cuenta && $periodo, 404);
 
+        $persistenciaDisponible = $this->persistenciaDisponible();
+        $entregas = collect();
+
+        if ($persistenciaDisponible) {
+            $entregas = BancoPreguntaLote::query()
+                ->with(['curso:id,denominacion', 'revisor:id,name', 'revisiones'])
+                ->where('docentes_id', $cuenta->docentes_id)
+                ->where('periodos_id', $periodo->id)
+                ->orderByDesc('created_at')
+                ->get()
+                ->map(function (BancoPreguntaLote $lote) {
+                    $ultimaRevision = $lote->revisiones->last();
+
+                    return [
+                        'id' => $lote->id,
+                        'curso' => optional($lote->curso)->denominacion,
+                        'semana' => $lote->semana,
+                        'nivel' => $lote->nivel,
+                        'cantidad_preguntas' => $lote->cantidad_preguntas,
+                        'version' => $lote->version,
+                        'archivo_nombre' => $lote->archivo_nombre,
+                        'archivo_size' => $lote->archivo_size,
+                        'estado' => $lote->estado,
+                        'observacion' => $lote->observacion,
+                        'revisor' => optional($lote->revisor)->name,
+                        'archivo_revision' => $ultimaRevision && $ultimaRevision->archivo_path
+                            ? [
+                                'id' => $ultimaRevision->id,
+                                'nombre' => $ultimaRevision->archivo_nombre,
+                            ]
+                            : null,
+                        'enviado_at' => optional($lote->enviado_at)->format('d/m/Y H:i'),
+                    ];
+                });
+        }
+
+        return Inertia::render('Docente/Recurso/PreguntasDemo', [
+            'cursos' => $this->cursosAsignados($cuenta->docentes_id, $periodo->id),
+            'entregas' => $entregas,
+            'persistenciaDisponible' => $persistenciaDisponible,
+            'periodo' => [
+                'id' => (int) $periodo->id,
+                'nombre' => $periodo->nombre ?? $periodo->codigo ?? "Periodo {$periodo->id}",
+            ],
+        ]);
+    }
+
+    public function store(StoreBancoPreguntaLoteRequest $request)
+    {
+        abort_unless($this->persistenciaDisponible(), 503, 'El modulo aun no tiene sus tablas instaladas.');
+
+        $cuenta = Auth::guard('docente')->user();
+        $periodo = Periodo::actual();
+        abort_unless($cuenta && $periodo, 404);
+
+        $cursoId = (int) $request->input('curso_id');
+        $semana = (int) $request->input('semana');
+
+        $cursoAsignado = DB::table('carga_academicas')
+            ->where('docentes_id', $cuenta->docentes_id)
+            ->where('periodos_id', $periodo->id)
+            ->where('cursos_id', $cursoId)
+            ->where('estado', '1')
+            ->exists();
+
+        if (!$cursoAsignado) {
+            throw ValidationException::withMessages([
+                'curso_id' => 'El curso no pertenece a tus cargas activas del periodo actual.',
+            ]);
+        }
+
+        $archivo = $request->file('archivo');
+        $nombreGuardado = Str::uuid().'.docx';
+        $directorio = sprintf('%d/%d/originales', $periodo->id, $cuenta->docentes_id);
+        $nombreOriginal = Str::limit(
+            basename(str_replace('\\', '/', $archivo->getClientOriginalName())),
+            255,
+            ''
+        );
+        $path = Storage::disk('banco_preguntas')->putFileAs(
+            $directorio,
+            $archivo,
+            $nombreGuardado
+        );
+
+        if (!$path) {
+            throw new RuntimeException('No se pudo almacenar el documento Word.');
+        }
+
+        try {
+            DB::transaction(function () use (
+                $archivo,
+                $cuenta,
+                $cursoId,
+                $nombreOriginal,
+                $path,
+                $periodo,
+                $request,
+                $semana
+            ) {
+                $ultimaEntrega = BancoPreguntaLote::query()
+                    ->where('periodos_id', $periodo->id)
+                    ->where('cursos_id', $cursoId)
+                    ->where('docentes_id', $cuenta->docentes_id)
+                    ->where('semana', $semana)
+                    ->orderByDesc('version')
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($ultimaEntrega && $ultimaEntrega->estado !== BancoPreguntaLote::ESTADO_OBSERVADO) {
+                    throw ValidationException::withMessages([
+                        'semana' => $ultimaEntrega->estado === BancoPreguntaLote::ESTADO_EN_REVISION
+                            ? 'Ya existe una entrega en revision para este curso y semana.'
+                            : 'La entrega de este curso y semana ya tiene una decision final.',
+                    ]);
+                }
+
+                BancoPreguntaLote::create([
+                    'periodos_id' => $periodo->id,
+                    'cursos_id' => $cursoId,
+                    'docentes_id' => $cuenta->docentes_id,
+                    'semana' => $semana,
+                    'nivel' => $request->input('nivel'),
+                    'cantidad_preguntas' => 2,
+                    'version' => $ultimaEntrega ? $ultimaEntrega->version + 1 : 1,
+                    'archivo_path' => $path,
+                    'archivo_nombre' => $nombreOriginal,
+                    'archivo_mime' => $archivo->getMimeType()
+                        ?: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'archivo_size' => $archivo->getSize(),
+                    'estado' => BancoPreguntaLote::ESTADO_EN_REVISION,
+                    'enviado_at' => now(),
+                ]);
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('banco_preguntas')->delete($path);
+            throw $exception;
+        }
+
+        return redirect()->back()->with('response', [
+            'status' => true,
+            'message' => 'El Word fue enviado correctamente para revision.',
+        ]);
+    }
+
+    public function plantilla()
+    {
+        $path = resource_path('templates/modelo-preguntas.docx');
+        abort_unless(is_file($path), 404);
+
+        return response()->download($path, 'MODELO-DE-PREGUNTAS-CEPREUNA.docx');
+    }
+
+    public function download(BancoPreguntaLote $lote)
+    {
+        $cuenta = Auth::guard('docente')->user();
+        abort_unless($cuenta && (int) $lote->docentes_id === (int) $cuenta->docentes_id, 404);
+        abort_unless(Storage::disk('banco_preguntas')->exists($lote->archivo_path), 404);
+
+        return Storage::disk('banco_preguntas')->download(
+            $lote->archivo_path,
+            $lote->archivo_nombre,
+            ['Content-Type' => $lote->archivo_mime]
+        );
+    }
+
+    public function downloadRevision(
+        BancoPreguntaLote $lote,
+        BancoPreguntaRevision $revision
+    ) {
+        $cuenta = Auth::guard('docente')->user();
+        abort_unless($cuenta && (int) $lote->docentes_id === (int) $cuenta->docentes_id, 404);
+        abort_unless((int) $revision->banco_pregunta_lote_id === (int) $lote->id, 404);
+        abort_unless($revision->archivo_path, 404);
+        abort_unless(Storage::disk('banco_preguntas')->exists($revision->archivo_path), 404);
+
+        return Storage::disk('banco_preguntas')->download(
+            $revision->archivo_path,
+            $revision->archivo_nombre,
+            ['Content-Type' => $revision->archivo_mime]
+        );
+    }
+
+    private function persistenciaDisponible(): bool
+    {
+        return Schema::hasTable('banco_pregunta_lotes')
+            && Schema::hasTable('banco_pregunta_revisiones');
+    }
+
+    private function cursosAsignados($docenteId, $periodoId)
+    {
         $cargas = DB::table('carga_academicas as ca')
             ->select(
-                'ca.id as carga_id',
                 'ca.cursos_id as curso_id',
                 'c.denominacion as curso',
                 'g.denominacion as grupo',
@@ -38,14 +236,14 @@ class PreguntasDemoController extends Controller
             ->join('aulas as au', 'au.id', 'ga.aulas_id')
             ->join('locales as l', 'l.id', 'au.locales_id')
             ->join('sedes as s', 's.id', 'l.sedes_id')
-            ->where('ca.docentes_id', $cuenta->docentes_id)
-            ->where('ca.periodos_id', $periodo->id)
+            ->where('ca.docentes_id', $docenteId)
+            ->where('ca.periodos_id', $periodoId)
             ->where('ca.estado', '1')
             ->orderBy('c.denominacion')
             ->orderBy('g.denominacion')
             ->get();
 
-        $cursos = $cargas
+        return $cargas
             ->groupBy('curso_id')
             ->map(function ($cargasCurso) {
                 $primeraCarga = $cargasCurso->first();
@@ -65,9 +263,6 @@ class PreguntasDemoController extends Controller
                     'curso' => $primeraCarga->curso,
                     'grupos' => $grupos->all(),
                     'modalidades' => $modalidades->all(),
-                    'cargas_ids' => $cargasCurso->pluck('carga_id')->map(function ($id) {
-                        return (int) $id;
-                    })->values()->all(),
                     'label' => sprintf(
                         '%s - %d %s',
                         $primeraCarga->curso,
@@ -77,13 +272,5 @@ class PreguntasDemoController extends Controller
                 ];
             })
             ->values();
-
-        return Inertia::render('Docente/Recurso/PreguntasDemo', [
-            'cursos' => $cursos,
-            'periodo' => [
-                'id' => (int) $periodo->id,
-                'nombre' => $periodo->nombre ?? $periodo->codigo ?? "Periodo {$periodo->id}",
-            ],
-        ]);
     }
 }

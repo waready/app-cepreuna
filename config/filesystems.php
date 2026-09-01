@@ -47,6 +47,10 @@ return [
             'url' => env('APP_URL').'/storage',
             'visibility' => 'public',
         ],
+        'banco_preguntas' => [
+            'driver' => 'local',
+            'root' => storage_path('app/banco-preguntas'),
+        ],
         'publicaciones' => [
             'driver' => 'local',
             'root' => storage_path('app/public/publicaciones'),

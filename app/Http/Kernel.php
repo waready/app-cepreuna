@@ -68,5 +68,6 @@ class Kernel extends HttpKernel
         'permission' => \Spatie\Permission\Middlewares\PermissionMiddleware::class,
         'role_or_permission' => \Spatie\Permission\Middlewares\RoleOrPermissionMiddleware::class,
         'docente.preguntas.demo' => \App\Http\Middleware\EnsureTeacherQuestionDemoAccess::class,
+        'banco.preguntas.revision' => \App\Http\Middleware\EnsureQuestionBankReviewAccess::class,
     ];
 }

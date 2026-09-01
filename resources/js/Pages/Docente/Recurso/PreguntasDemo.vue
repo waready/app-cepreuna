@@ -1,1130 +1,961 @@
 <template>
-    <app-layout title="Banco de preguntas" :mode="2">
-        <section class="question-demo">
-            <header class="demo-hero">
-                <div class="hero-copy">
-                    <span class="hero-kicker">Prototipo para docentes seleccionados</span>
-                    <h1>Banco de preguntas</h1>
+    <app-layout title="Entrega de preguntas" :mode="2">
+        <section class="submission-page">
+            <header class="submission-hero">
+                <div>
+                    <span class="hero-kicker">Piloto para docentes seleccionados</span>
+                    <h1>Entrega tus preguntas en Word</h1>
                     <p>
-                        Organiza preguntas por curso antes de enviarlas para revision.
-                        Este demo no guarda informacion en el servidor.
+                        Presenta un documento editable por curso y semana. El equipo revisor
+                        validara el contenido antes de aprobarlo.
                     </p>
                 </div>
-                <div class="hero-status">
-                    <Tag icon="pi pi-lock" severity="warning" value="Demo no habilitado" />
-                    <span><i class="pi pi-calendar"></i>{{ periodo.nombre }}</span>
+                <div class="hero-actions">
+                    <span class="period-pill">
+                        <i class="pi pi-calendar"></i>
+                        {{ periodo.nombre }}
+                    </span>
+                    <a
+                        :href="route('docentes.recursos.preguntas-demo.plantilla')"
+                        class="template-link"
+                    >
+                        <i class="pi pi-download"></i>
+                        Descargar formato Word
+                    </a>
                 </div>
             </header>
 
-            <Message severity="info" :closable="false" class="demo-notice">
-                Las preguntas agregadas permanecen solo durante esta visita. El envio y la
-                importacion masiva seguiran bloqueados hasta aprobar el modulo definitivo.
+            <Message
+                v-if="!persistenciaDisponible"
+                severity="warn"
+                :closable="false"
+                class="module-notice"
+            >
+                Vista previa: el envio permanecera bloqueado hasta que se aprueben e instalen
+                las tablas del modulo. No se ha modificado la base de datos actual.
             </Message>
 
-            <div v-if="!cursos.length" class="empty-courses">
+            <div v-if="!cursos.length" class="empty-state">
                 <i class="pi pi-book"></i>
                 <h2>No hay cursos disponibles</h2>
-                <p>El docente no tiene cargas activas en el periodo actual.</p>
+                <p>No tienes cargas activas en el periodo actual.</p>
             </div>
 
-            <template v-else>
-                <div class="workspace-grid">
-                    <article class="editor-card">
-                        <div class="section-heading">
-                            <span class="step-number">1</span>
-                            <div>
-                                <span class="section-eyebrow">Nueva pregunta</span>
-                                <h2>Selecciona el curso y redacta</h2>
-                            </div>
+            <div v-else class="workflow-grid">
+                <aside class="requirements-card">
+                    <div class="card-title">
+                        <span class="step-badge">1</span>
+                        <div>
+                            <small>Antes de adjuntar</small>
+                            <h2>Revisa el formato</h2>
                         </div>
+                    </div>
 
+                    <div class="document-preview">
+                        <span class="word-icon"><i class="pi pi-file"></i></span>
+                        <div>
+                            <strong>2 preguntas por entrega</strong>
+                            <span>Un solo archivo Word editable</span>
+                        </div>
+                    </div>
+
+                    <ol class="requirements-list">
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Incluye exactamente <strong>2 preguntas</strong> del curso y nivel indicados.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Usa cinco alternativas, de <strong>A a E</strong>, y resalta la respuesta correcta.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Agrega la justificacion o solucion de cada pregunta.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Registra bibliografia con autor, anio, titulo y editorial.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>En Matematica, Fisica o Quimica puedes insertar una solucion fotografiada si es legible.</span>
+                        </li>
+                    </ol>
+
+                    <a
+                        :href="route('docentes.recursos.preguntas-demo.plantilla')"
+                        class="format-reminder"
+                    >
+                        <i class="pi pi-file-word"></i>
+                        <span>
+                            <strong>Usa el modelo oficial</strong>
+                            <small>Abre, edita y conserva su estructura.</small>
+                        </span>
+                        <i class="pi pi-arrow-down"></i>
+                    </a>
+                </aside>
+
+                <article class="upload-card">
+                    <div class="card-title">
+                        <span class="step-badge accent">2</span>
+                        <div>
+                            <small>Nueva entrega</small>
+                            <h2>Adjunta el documento</h2>
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="enviar">
                         <div class="form-grid">
                             <div class="field field-wide">
-                                <label for="pregunta-curso">Curso asignado</label>
+                                <label for="entrega-curso">Curso asignado</label>
                                 <Dropdown
-                                    id="pregunta-curso"
-                                    v-model="formulario.curso_id"
+                                    id="entrega-curso"
+                                    v-model="form.curso_id"
                                     :options="cursos"
                                     optionLabel="label"
                                     optionValue="id"
                                     placeholder="Selecciona un curso"
                                     class="w-full"
-                                    :class="{ 'p-invalid': errores.curso_id }"
+                                    :class="{ 'p-invalid': form.errors.curso_id }"
                                 />
-                                <small v-if="errores.curso_id" class="p-error">{{ errores.curso_id }}</small>
+                                <small v-if="form.errors.curso_id" class="p-error">{{ form.errors.curso_id }}</small>
                                 <div v-if="cursoSeleccionado" class="course-context">
-                                    <span>
-                                        <i class="pi pi-users"></i>
-                                        {{ cursoSeleccionado.grupos.join(", ") }}
-                                    </span>
+                                    <span><i class="pi pi-users"></i>{{ cursoSeleccionado.grupos.join(", ") }}</span>
                                     <Tag
                                         v-for="modalidad in cursoSeleccionado.modalidades"
                                         :key="modalidad"
                                         :severity="modalidad === 'Virtual' ? 'info' : 'success'"
-                                        :icon="modalidad === 'Virtual' ? 'pi pi-desktop' : 'pi pi-map-marker'"
                                         :value="modalidad"
                                     />
                                 </div>
                             </div>
 
                             <div class="field">
-                                <label for="pregunta-tema">Tema o unidad</label>
-                                <InputText
-                                    id="pregunta-tema"
-                                    v-model.trim="formulario.tema"
-                                    placeholder="Ej. Productos notables"
-                                    :class="{ 'p-invalid': errores.tema }"
+                                <label for="entrega-semana">Semana</label>
+                                <InputNumber
+                                    id="entrega-semana"
+                                    v-model="form.semana"
+                                    :min="1"
+                                    :max="30"
+                                    :useGrouping="false"
+                                    placeholder="Ej. 4"
+                                    :class="{ 'p-invalid': form.errors.semana }"
                                 />
-                                <small v-if="errores.tema" class="p-error">{{ errores.tema }}</small>
+                                <small v-if="form.errors.semana" class="p-error">{{ form.errors.semana }}</small>
                             </div>
 
-                            <div class="field difficulty-field">
-                                <label>Nivel de dificultad</label>
-                                <SelectButton
-                                    v-model="formulario.dificultad"
-                                    :options="dificultades"
-                                    :allowEmpty="false"
+                            <div class="field">
+                                <label for="entrega-nivel">Nivel</label>
+                                <Dropdown
+                                    id="entrega-nivel"
+                                    v-model="form.nivel"
+                                    :options="niveles"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="Selecciona el nivel"
+                                    class="w-full"
+                                    :class="{ 'p-invalid': form.errors.nivel }"
                                 />
-                            </div>
-
-                            <div class="field field-wide">
-                                <label for="pregunta-enunciado">Enunciado</label>
-                                <Textarea
-                                    id="pregunta-enunciado"
-                                    v-model.trim="formulario.enunciado"
-                                    rows="4"
-                                    autoResize
-                                    placeholder="Escribe una pregunta clara y completa..."
-                                    :class="{ 'p-invalid': errores.enunciado }"
-                                />
-                                <div class="field-meta">
-                                    <small v-if="errores.enunciado" class="p-error">{{ errores.enunciado }}</small>
-                                    <small v-else>{{ formulario.enunciado.length }} caracteres</small>
-                                </div>
+                                <small v-if="form.errors.nivel" class="p-error">{{ form.errors.nivel }}</small>
                             </div>
                         </div>
 
-                        <div class="answers-block">
-                            <div class="answers-heading">
-                                <div>
-                                    <span class="section-eyebrow">Alternativas</span>
-                                    <h3>Marca la respuesta correcta</h3>
-                                </div>
-                                <span class="answer-hint"><i class="pi pi-check-circle"></i> Una sola respuesta</span>
-                            </div>
-
-                            <div class="answer-list">
-                                <label
-                                    v-for="alternativa in formulario.alternativas"
-                                    :key="alternativa.clave"
-                                    class="answer-row"
-                                    :class="{ 'answer-correct': formulario.correcta === alternativa.clave }"
-                                    :for="`respuesta-${alternativa.clave}`"
-                                >
-                                    <RadioButton
-                                        :inputId="`respuesta-${alternativa.clave}`"
-                                        name="respuesta-correcta"
-                                        v-model="formulario.correcta"
-                                        :value="alternativa.clave"
-                                    />
-                                    <span class="answer-key">{{ alternativa.clave }}</span>
-                                    <InputText
-                                        v-model.trim="alternativa.texto"
-                                        :placeholder="`Alternativa ${alternativa.clave}`"
-                                        class="answer-input"
-                                    />
-                                </label>
-                            </div>
-                            <small v-if="errores.alternativas" class="p-error block mt-2">{{ errores.alternativas }}</small>
-                            <small v-if="errores.correcta" class="p-error block mt-2">{{ errores.correcta }}</small>
+                        <div class="field file-field">
+                            <label>Documento Word</label>
+                            <label
+                                for="entrega-archivo"
+                                class="drop-zone"
+                                :class="{ selected: form.archivo, invalid: form.errors.archivo }"
+                            >
+                                <input
+                                    :key="archivoKey"
+                                    id="entrega-archivo"
+                                    type="file"
+                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    @change="seleccionarArchivo"
+                                />
+                                <span class="drop-icon"><i :class="form.archivo ? 'pi pi-check' : 'pi pi-upload'"></i></span>
+                                <span v-if="form.archivo" class="file-copy">
+                                    <strong>{{ form.archivo.name }}</strong>
+                                    <small>{{ formatoBytes(form.archivo.size) }} · listo para enviar</small>
+                                </span>
+                                <span v-else class="file-copy">
+                                    <strong>Selecciona tu archivo .docx</strong>
+                                    <small>Documento editable de hasta 10 MB</small>
+                                </span>
+                                <span class="browse-label">Examinar</span>
+                            </label>
+                            <small v-if="form.errors.archivo" class="p-error">{{ form.errors.archivo }}</small>
                         </div>
 
-                        <div class="form-grid supporting-fields">
-                            <div class="field field-wide">
-                                <label for="pregunta-explicacion">Explicacion para revision <span>(opcional)</span></label>
-                                <Textarea
-                                    id="pregunta-explicacion"
-                                    v-model.trim="formulario.explicacion"
-                                    rows="3"
-                                    autoResize
-                                    placeholder="Indica el procedimiento o fundamento de la respuesta."
-                                />
-                            </div>
-
-                            <div class="field field-wide">
-                                <label for="pregunta-imagen">Imagen de apoyo <span>(opcional, max. 2 MB)</span></label>
-                                <div class="file-control">
-                                    <input
-                                        :key="archivoKey"
-                                        id="pregunta-imagen"
-                                        type="file"
-                                        accept="image/png,image/jpeg,image/webp"
-                                        @change="seleccionarImagen"
-                                    />
-                                    <span v-if="formulario.imagen_nombre" class="file-name">
-                                        <i class="pi pi-image"></i>{{ formulario.imagen_nombre }}
-                                    </span>
-                                </div>
-                                <small v-if="errores.imagen" class="p-error">{{ errores.imagen }}</small>
-                                <img
-                                    v-if="formulario.imagen"
-                                    :src="formulario.imagen"
-                                    alt="Vista previa del apoyo"
-                                    class="image-preview"
-                                />
-                            </div>
-                        </div>
-
-                        <div class="editor-actions">
-                            <Button
-                                label="Limpiar"
-                                icon="pi pi-refresh"
-                                class="p-button-outlined p-button-secondary"
-                                @click="limpiarFormulario"
+                        <label class="confirmation-row" for="confirmacion-dos-preguntas">
+                            <Checkbox
+                                inputId="confirmacion-dos-preguntas"
+                                v-model="form.confirmacion_dos_preguntas"
+                                :binary="true"
                             />
+                            <span>
+                                Confirmo que el Word sigue el formato y contiene exactamente
+                                <strong>2 preguntas</strong>.
+                            </span>
+                        </label>
+                        <small v-if="form.errors.confirmacion_dos_preguntas" class="p-error confirmation-error">
+                            {{ form.errors.confirmacion_dos_preguntas }}
+                        </small>
+
+                        <div class="submit-row">
+                            <div>
+                                <i class="pi pi-lock"></i>
+                                El archivo sera privado y solo lo vera el equipo revisor.
+                            </div>
                             <Button
-                                label="Agregar al borrador"
-                                icon="pi pi-plus"
-                                class="p-button-success"
-                                @click="agregarPregunta"
+                                type="submit"
+                                label="Enviar a revision"
+                                icon="pi pi-send"
+                                class="submit-button"
+                                :loading="form.processing"
+                                :disabled="!puedeEnviar"
                             />
                         </div>
-                    </article>
+                    </form>
+                </article>
+            </div>
 
-                    <aside class="summary-card">
-                        <div class="summary-top">
-                            <span class="step-number">2</span>
-                            <div>
-                                <span class="section-eyebrow">Resumen</span>
-                                <h2>Tu lote de trabajo</h2>
-                            </div>
-                        </div>
-
-                        <div class="summary-metrics">
-                            <div>
-                                <strong>{{ borrador.length }}</strong>
-                                <span>Preguntas</span>
-                            </div>
-                            <div>
-                                <strong>{{ cursosUsados }}</strong>
-                                <span>Cursos</span>
-                            </div>
-                        </div>
-
-                        <ol class="workflow-list">
-                            <li class="complete"><i class="pi pi-check"></i><span>Elegir una carga vigente</span></li>
-                            <li :class="{ complete: borrador.length }"><i :class="borrador.length ? 'pi pi-check' : 'pi pi-pencil'"></i><span>Preparar el borrador</span></li>
-                            <li><i class="pi pi-lock"></i><span>Enviar para revision</span></li>
-                        </ol>
-
-                        <div class="bulk-placeholder">
-                            <i class="pi pi-file-excel"></i>
-                            <div>
-                                <strong>Importacion masiva</strong>
-                                <span>La plantilla XLSX se incorporara en la siguiente etapa.</span>
-                            </div>
-                        </div>
-
-                        <Button
-                            label="Enviar lote (proximamente)"
-                            icon="pi pi-lock"
-                            class="w-full p-button-warning"
-                            :disabled="true"
-                        />
-                    </aside>
+            <section class="history-card">
+                <div class="history-heading">
+                    <div>
+                        <small>Seguimiento</small>
+                        <h2>Mis entregas del periodo</h2>
+                    </div>
+                    <span>{{ entregas.length }} {{ entregas.length === 1 ? "entrega" : "entregas" }}</span>
                 </div>
 
-                <section class="draft-card">
-                    <div class="section-heading draft-heading">
-                        <span class="step-number">3</span>
-                        <div>
-                            <span class="section-eyebrow">Revision previa</span>
-                            <h2>Preguntas en borrador</h2>
+                <DataTable
+                    :value="entregas"
+                    responsiveLayout="stack"
+                    breakpoint="860px"
+                    class="p-datatable-sm submission-table"
+                >
+                    <template #empty>
+                        <div class="table-empty">
+                            <i class="pi pi-inbox"></i>
+                            <span>Todavia no tienes entregas registradas.</span>
                         </div>
-                    </div>
-
-                    <DataTable
-                        :value="borrador"
-                        responsiveLayout="stack"
-                        breakpoint="900px"
-                        class="p-datatable-sm draft-table"
-                    >
-                        <template #empty>
-                            <div class="draft-empty">
-                                <i class="pi pi-inbox"></i>
-                                <span>Agrega la primera pregunta para construir el lote.</span>
+                    </template>
+                    <Column field="curso" header="Curso"></Column>
+                    <Column header="Entrega">
+                        <template #body="slotProps">
+                            <div class="delivery-meta">
+                                <strong>Semana {{ slotProps.data.semana }}</strong>
+                                <span>{{ nivelLabel(slotProps.data.nivel) }} · version {{ slotProps.data.version }}</span>
                             </div>
                         </template>
-                        <Column field="curso" header="Curso"></Column>
-                        <Column field="tema" header="Tema"></Column>
-                        <Column field="enunciado" header="Pregunta">
-                            <template #body="slotProps">
-                                <span class="question-cell">{{ resumir(slotProps.data.enunciado) }}</span>
-                            </template>
-                        </Column>
-                        <Column field="dificultad" header="Nivel">
-                            <template #body="slotProps">
-                                <Tag :severity="dificultadSeverity(slotProps.data.dificultad)" :value="slotProps.data.dificultad" />
-                            </template>
-                        </Column>
-                        <Column field="correcta" header="Clave">
-                            <template #body="slotProps">
-                                <span class="correct-key">{{ slotProps.data.correcta }}</span>
-                            </template>
-                        </Column>
-                        <Column header="Acciones">
-                            <template #body="slotProps">
-                                <div class="row-actions">
-                                    <Button
-                                        icon="pi pi-eye"
-                                        class="p-button-sm p-button-outlined"
-                                        aria-label="Ver pregunta"
-                                        @click="verPregunta(slotProps.data)"
-                                    />
-                                    <Button
-                                        icon="pi pi-trash"
-                                        class="p-button-sm p-button-outlined p-button-danger"
-                                        aria-label="Quitar pregunta"
-                                        @click="eliminarPregunta(slotProps.data.id)"
-                                    />
-                                </div>
-                            </template>
-                        </Column>
-                    </DataTable>
-                </section>
-            </template>
-
-            <Dialog
-                v-model:visible="vistaPreviaVisible"
-                header="Vista previa de la pregunta"
-                :modal="true"
-                position="top"
-                :style="{ width: '620px' }"
-                :breakpoints="{ '680px': 'calc(100vw - 1rem)' }"
-            >
-                <article v-if="preguntaPrevia" class="question-preview-dialog">
-                    <div class="preview-meta">
-                        <Tag severity="warning" :value="preguntaPrevia.dificultad" />
-                        <span>{{ preguntaPrevia.curso }} / {{ preguntaPrevia.tema }}</span>
-                    </div>
-                    <h3>{{ preguntaPrevia.enunciado }}</h3>
-                    <img v-if="preguntaPrevia.imagen" :src="preguntaPrevia.imagen" alt="Apoyo de la pregunta" />
-                    <div class="preview-answers">
-                        <div
-                            v-for="alternativa in preguntaPrevia.alternativas"
-                            :key="alternativa.clave"
-                            :class="{ correct: alternativa.clave === preguntaPrevia.correcta }"
-                        >
-                            <strong>{{ alternativa.clave }}</strong>
-                            <span>{{ alternativa.texto }}</span>
-                            <i v-if="alternativa.clave === preguntaPrevia.correcta" class="pi pi-check-circle"></i>
-                        </div>
-                    </div>
-                    <div v-if="preguntaPrevia.explicacion" class="preview-explanation">
-                        <strong>Explicacion</strong>
-                        <p>{{ preguntaPrevia.explicacion }}</p>
-                    </div>
-                </article>
-            </Dialog>
+                    </Column>
+                    <Column header="Archivo">
+                        <template #body="slotProps">
+                            <a
+                                :href="route('docentes.recursos.preguntas-demo.download', slotProps.data.id)"
+                                class="file-download"
+                            >
+                                <i class="pi pi-file-word"></i>
+                                <span>{{ slotProps.data.archivo_nombre }}</span>
+                            </a>
+                        </template>
+                    </Column>
+                    <Column field="enviado_at" header="Enviado"></Column>
+                    <Column header="Estado">
+                        <template #body="slotProps">
+                            <div class="status-cell">
+                                <Tag
+                                    :severity="estadoSeverity(slotProps.data.estado)"
+                                    :value="estadoLabel(slotProps.data.estado)"
+                                />
+                                <small v-if="slotProps.data.observacion">{{ slotProps.data.observacion }}</small>
+                                <a
+                                    v-if="slotProps.data.archivo_revision"
+                                    :href="route(
+                                        'docentes.recursos.preguntas-demo.download-revision',
+                                        [slotProps.data.id, slotProps.data.archivo_revision.id]
+                                    )"
+                                    class="review-file-link"
+                                >
+                                    <i class="pi pi-download"></i>
+                                    Descargar Word revisado
+                                </a>
+                            </div>
+                        </template>
+                    </Column>
+                </DataTable>
+            </section>
         </section>
     </app-layout>
 </template>
 
 <script>
 import AppLayout from "@/Layouts/AppLayout";
-import { computed, reactive, ref } from "vue";
+import { computed, ref } from "vue";
+import { useForm } from "@inertiajs/inertia-vue3";
 import { useToast } from "primevue/usetoast";
-
-const formularioVacio = () => ({
-    curso_id: null,
-    tema: "",
-    dificultad: "Intermedia",
-    enunciado: "",
-    correcta: "",
-    explicacion: "",
-    imagen: "",
-    imagen_nombre: "",
-    alternativas: ["A", "B", "C", "D"].map((clave) => ({ clave, texto: "" })),
-});
 
 export default {
     components: { AppLayout },
     props: {
         cursos: { type: Array, default: () => [] },
+        entregas: { type: Array, default: () => [] },
         periodo: { type: Object, required: true },
+        persistenciaDisponible: { type: Boolean, default: false },
     },
     setup(props) {
         const toast = useToast();
-        const dificultades = ["Basica", "Intermedia", "Avanzada"];
-        const formulario = reactive(formularioVacio());
-        const errores = reactive({});
-        const borrador = ref([]);
         const archivoKey = ref(0);
-        const vistaPreviaVisible = ref(false);
-        const preguntaPrevia = ref(null);
+        const niveles = [
+            { label: "Basico", value: "basico" },
+            { label: "Intermedio", value: "intermedio" },
+            { label: "Avanzado", value: "avanzado" },
+        ];
+        const form = useForm({
+            curso_id: null,
+            semana: null,
+            nivel: null,
+            cantidad_preguntas: 2,
+            confirmacion_dos_preguntas: false,
+            archivo: null,
+        });
 
         const cursoSeleccionado = computed(() =>
-            props.cursos.find((curso) => curso.id === formulario.curso_id)
+            props.cursos.find((curso) => curso.id === form.curso_id)
         );
-        const cursosUsados = computed(
-            () => new Set(borrador.value.map((pregunta) => pregunta.curso_id)).size
+        const puedeEnviar = computed(
+            () =>
+                props.persistenciaDisponible &&
+                form.curso_id &&
+                form.semana &&
+                form.nivel &&
+                form.archivo &&
+                form.confirmacion_dos_preguntas &&
+                !form.processing
         );
 
-        const limpiarErrores = () => {
-            Object.keys(errores).forEach((campo) => delete errores[campo]);
+        const seleccionarArchivo = (event) => {
+            form.archivo = event.target.files?.[0] || null;
+            form.clearErrors("archivo");
         };
 
-        const validarFormulario = () => {
-            limpiarErrores();
-
-            if (!formulario.curso_id) errores.curso_id = "Selecciona el curso de la pregunta.";
-            if (formulario.tema.length < 3) errores.tema = "Indica un tema o unidad.";
-            if (formulario.enunciado.length < 10) errores.enunciado = "El enunciado debe tener al menos 10 caracteres.";
-
-            const respuestas = formulario.alternativas.map((alternativa) => alternativa.texto.trim());
-            if (respuestas.some((respuesta) => !respuesta)) {
-                errores.alternativas = "Completa las cuatro alternativas.";
-            } else if (new Set(respuestas.map((respuesta) => respuesta.toLowerCase())).size !== respuestas.length) {
-                errores.alternativas = "Las alternativas no pueden repetirse.";
-            }
-
-            if (!formulario.correcta) errores.correcta = "Marca la alternativa correcta.";
-
-            return Object.keys(errores).length === 0;
-        };
-
-        const limpiarFormulario = () => {
-            Object.assign(formulario, formularioVacio());
-            limpiarErrores();
-            archivoKey.value += 1;
-        };
-
-        const seleccionarImagen = (event) => {
-            const archivo = event.target.files?.[0];
-            delete errores.imagen;
-
-            if (!archivo) {
-                formulario.imagen = "";
-                formulario.imagen_nombre = "";
-                return;
-            }
-
-            if (!archivo.type.startsWith("image/") || archivo.size > 2 * 1024 * 1024) {
-                errores.imagen = "Selecciona una imagen JPG, PNG o WEBP de hasta 2 MB.";
-                formulario.imagen = "";
-                formulario.imagen_nombre = "";
-                archivoKey.value += 1;
-                return;
-            }
-
-            const lector = new FileReader();
-            lector.onload = () => {
-                formulario.imagen = lector.result;
-                formulario.imagen_nombre = archivo.name;
-            };
-            lector.readAsDataURL(archivo);
-        };
-
-        const agregarPregunta = () => {
-            if (!validarFormulario()) {
-                toast.add({
-                    severity: "warn",
-                    summary: "Revisa la pregunta",
-                    detail: "Completa los campos marcados antes de agregarla.",
-                    life: 3200,
-                });
-                return;
-            }
-
-            const curso = cursoSeleccionado.value;
-            borrador.value.push({
-                id: `${Date.now()}-${borrador.value.length + 1}`,
-                curso_id: curso.id,
-                curso: curso.curso,
-                grupos: [...curso.grupos],
-                modalidades: [...curso.modalidades],
-                tema: formulario.tema,
-                dificultad: formulario.dificultad,
-                enunciado: formulario.enunciado,
-                correcta: formulario.correcta,
-                explicacion: formulario.explicacion,
-                imagen: formulario.imagen,
-                imagen_nombre: formulario.imagen_nombre,
-                alternativas: formulario.alternativas.map((alternativa) => ({ ...alternativa })),
-            });
-
-            limpiarFormulario();
-            toast.add({
-                severity: "success",
-                summary: "Pregunta agregada",
-                detail: "Se incorporo al borrador temporal del demo.",
-                life: 2600,
+        const enviar = () => {
+            form.post(route("docentes.recursos.preguntas-demo.store"), {
+                forceFormData: true,
+                preserveScroll: true,
+                onSuccess: () => {
+                    form.reset();
+                    archivoKey.value += 1;
+                    toast.add({
+                        severity: "success",
+                        summary: "Entrega registrada",
+                        detail: "El documento fue enviado para revision.",
+                        life: 3500,
+                    });
+                },
+                onError: () => {
+                    toast.add({
+                        severity: "warn",
+                        summary: "Revisa la entrega",
+                        detail: "Hay datos que necesitan tu atencion.",
+                        life: 3500,
+                    });
+                },
             });
         };
 
-        const eliminarPregunta = (id) => {
-            borrador.value = borrador.value.filter((pregunta) => pregunta.id !== id);
+        const formatoBytes = (bytes) => {
+            if (!bytes) return "0 KB";
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
         };
-
-        const verPregunta = (pregunta) => {
-            preguntaPrevia.value = pregunta;
-            vistaPreviaVisible.value = true;
-        };
-
-        const resumir = (texto) => (texto.length > 95 ? `${texto.slice(0, 95)}...` : texto);
-        const dificultadSeverity = (dificultad) => {
-            if (dificultad === "Basica") return "success";
-            if (dificultad === "Avanzada") return "danger";
-            return "warning";
-        };
+        const nivelLabel = (nivel) => niveles.find((item) => item.value === nivel)?.label || nivel;
+        const estadoLabel = (estado) => ({
+            borrador: "Borrador",
+            en_revision: "En revision",
+            aprobado: "Aprobado",
+            observado: "Observado",
+            rechazado: "Rechazado",
+        }[estado] || estado);
+        const estadoSeverity = (estado) => ({
+            en_revision: "info",
+            aprobado: "success",
+            observado: "warning",
+            rechazado: "danger",
+        }[estado] || "info");
 
         return {
-            agregarPregunta,
             archivoKey,
-            borrador,
             cursoSeleccionado,
-            cursosUsados,
-            dificultades,
-            dificultadSeverity,
-            eliminarPregunta,
-            errores,
-            formulario,
-            limpiarFormulario,
-            preguntaPrevia,
-            resumir,
-            seleccionarImagen,
-            verPregunta,
-            vistaPreviaVisible,
+            enviar,
+            estadoLabel,
+            estadoSeverity,
+            form,
+            formatoBytes,
+            nivelLabel,
+            niveles,
+            puedeEnviar,
+            seleccionarArchivo,
         };
     },
 };
 </script>
 
 <style scoped>
-.question-demo {
-    --demo-ink: #23313d;
-    --demo-muted: #687783;
-    --demo-accent: #cb4b1b;
-    --demo-accent-dark: #78391f;
+.submission-page {
+    --ink: #29353d;
+    --muted: #6f7b82;
+    --accent: #d9541e;
+    --accent-dark: #9b3714;
+    --paper: #fffdf9;
     display: grid;
-    gap: 1.1rem;
+    gap: 1.15rem;
+    color: var(--ink);
 }
 
-.demo-hero {
+.submission-hero {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
     overflow: hidden;
-    padding: 1.6rem;
-    border: 1px solid #ead8cf;
-    border-radius: 20px;
+    padding: 1.7rem;
+    border: 1px solid #efd8ca;
+    border-radius: 18px;
     background:
-        radial-gradient(circle at 88% 12%, rgba(203, 75, 27, 0.14), transparent 29%),
-        linear-gradient(125deg, #fff8f3 0%, #fff 58%, #f3e9e1 100%);
-    box-shadow: 0 14px 34px rgba(61, 42, 31, 0.08);
+        radial-gradient(circle at 92% 0, rgba(255, 190, 130, 0.33), transparent 34%),
+        linear-gradient(135deg, #fffaf4 0%, #fff 70%);
+    box-shadow: 0 14px 32px rgba(87, 49, 31, 0.08);
 }
 
-.demo-hero::after {
-    content: "?";
+.submission-hero::after {
     position: absolute;
-    right: 1.5rem;
-    bottom: -3.9rem;
-    color: rgba(120, 57, 31, 0.07);
-    font-size: 12rem;
-    font-weight: 900;
-    line-height: 1;
-}
-
-.hero-copy,
-.hero-status {
-    position: relative;
-    z-index: 1;
-}
-
-.hero-copy {
-    max-width: 720px;
+    right: -28px;
+    bottom: -52px;
+    width: 180px;
+    height: 180px;
+    border: 28px solid rgba(217, 84, 30, 0.07);
+    border-radius: 50%;
+    content: "";
 }
 
 .hero-kicker,
-.section-eyebrow {
-    color: var(--demo-accent);
+.card-title small,
+.history-heading small {
+    color: var(--accent);
     font-size: 0.72rem;
     font-weight: 800;
-    letter-spacing: 0.11em;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
 }
 
-.hero-copy h1 {
+.submission-hero h1 {
     margin: 0.3rem 0 0.45rem;
-    color: var(--demo-ink);
-    font-size: clamp(1.55rem, 3vw, 2.35rem);
+    color: #27343c;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: clamp(1.65rem, 3vw, 2.45rem);
+    line-height: 1.05;
 }
 
-.hero-copy p {
+.submission-hero p {
     max-width: 650px;
     margin: 0;
-    color: var(--demo-muted);
-    font-size: 0.96rem;
-    line-height: 1.6;
+    color: var(--muted);
+    font-size: 0.98rem;
+    line-height: 1.55;
 }
 
-.hero-status {
+.hero-actions {
+    z-index: 1;
     display: grid;
-    justify-items: end;
-    gap: 0.75rem;
-    white-space: nowrap;
+    flex: 0 0 auto;
+    gap: 0.65rem;
+    min-width: 230px;
 }
 
-.hero-status > span {
-    display: inline-flex;
+.period-pill,
+.template-link {
+    display: flex;
     align-items: center;
-    gap: 0.45rem;
-    color: var(--demo-accent-dark);
-    font-size: 0.85rem;
+    justify-content: center;
+    gap: 0.55rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
     font-weight: 700;
 }
 
-.demo-notice {
+.period-pill {
+    border: 1px solid #ead8cd;
+    background: rgba(255, 255, 255, 0.82);
+    color: #6e4a38;
+}
+
+.template-link {
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    box-shadow: 0 9px 20px rgba(217, 84, 30, 0.22);
+}
+
+.template-link:hover {
+    background: var(--accent-dark);
+    color: white;
+}
+
+.module-notice {
     margin: 0;
 }
 
-.workspace-grid {
+.workflow-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-    align-items: start;
+    grid-template-columns: minmax(270px, 0.74fr) minmax(0, 1.45fr);
     gap: 1.1rem;
 }
 
-.editor-card,
-.summary-card,
-.draft-card,
-.empty-courses {
-    border: 1px solid #e1e7eb;
-    border-radius: 18px;
-    background: #fff;
-    box-shadow: 0 10px 28px rgba(35, 49, 61, 0.06);
+.requirements-card,
+.upload-card,
+.history-card,
+.empty-state {
+    border: 1px solid #e3e7e9;
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 10px 25px rgba(37, 51, 60, 0.06);
 }
 
-.editor-card,
-.draft-card {
+.requirements-card,
+.upload-card {
     padding: 1.35rem;
 }
 
-.summary-card {
-    position: sticky;
-    top: 1rem;
-    display: grid;
-    gap: 1.1rem;
-    padding: 1.2rem;
-    background: linear-gradient(160deg, #fff 0%, #fff9f4 100%);
-}
-
-.section-heading,
-.summary-top {
+.card-title {
     display: flex;
     align-items: center;
     gap: 0.8rem;
+    margin-bottom: 1.15rem;
 }
 
-.section-heading {
-    margin-bottom: 1.25rem;
+.card-title h2,
+.history-heading h2 {
+    margin: 0.12rem 0 0;
+    color: var(--ink);
+    font-size: 1.18rem;
 }
 
-.step-number {
-    display: inline-grid;
-    width: 2.35rem;
-    height: 2.35rem;
-    flex: 0 0 auto;
+.step-badge {
+    display: grid;
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
     place-items: center;
+    border-radius: 11px;
+    background: #edf1f2;
+    color: #58666e;
+    font-weight: 900;
+}
+
+.step-badge.accent {
+    background: #fff0e8;
+    color: var(--accent);
+}
+
+.document-preview {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.9rem;
     border-radius: 12px;
-    background: var(--demo-accent-dark);
-    color: #fff;
-    font-weight: 800;
-    box-shadow: 0 6px 14px rgba(120, 57, 31, 0.2);
+    background: #fff7f1;
 }
 
-.section-heading h2,
-.summary-top h2,
-.answers-heading h3 {
-    margin: 0.18rem 0 0;
-    color: var(--demo-ink);
+.word-icon {
+    display: grid;
+    width: 42px;
+    height: 48px;
+    place-items: center;
+    border-radius: 8px;
+    background: #2367b1;
+    color: white;
+    font-size: 1.2rem;
 }
 
-.section-heading h2,
-.summary-top h2 {
-    font-size: 1.1rem;
+.document-preview div,
+.file-copy,
+.delivery-meta,
+.status-cell {
+    display: grid;
+    gap: 0.18rem;
+    min-width: 0;
+}
+
+.document-preview span,
+.file-copy small,
+.delivery-meta span {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.requirements-list {
+    display: grid;
+    gap: 0.85rem;
+    margin: 1.2rem 0;
+    padding: 0;
+    list-style: none;
+}
+
+.requirements-list li {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 0.55rem;
+    color: #556169;
+    font-size: 0.88rem;
+    line-height: 1.45;
+}
+
+.requirements-list i {
+    display: grid;
+    width: 21px;
+    height: 21px;
+    place-items: center;
+    border-radius: 50%;
+    background: #e8f6ee;
+    color: #258a51;
+    font-size: 0.65rem;
+}
+
+.format-reminder {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.9rem;
+    border: 1px dashed #cfb8aa;
+    border-radius: 11px;
+    color: #624538;
+    text-decoration: none;
+}
+
+.format-reminder > i:first-child {
+    color: #2367b1;
+    font-size: 1.35rem;
+}
+
+.format-reminder span {
+    display: grid;
+}
+
+.format-reminder small {
+    color: var(--muted);
 }
 
 .form-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: 1fr 1fr;
     gap: 1rem;
 }
 
 .field {
-    min-width: 0;
-    margin: 0;
+    display: grid;
+    align-content: start;
+    gap: 0.42rem;
 }
 
 .field-wide {
     grid-column: 1 / -1;
 }
 
-.field label {
-    display: block;
-    margin-bottom: 0.45rem;
-    color: #3e4c57;
-    font-size: 0.83rem;
-    font-weight: 700;
+.field > label {
+    color: #43515a;
+    font-size: 0.84rem;
+    font-weight: 800;
 }
 
-.field label span {
-    color: var(--demo-muted);
-    font-weight: 500;
-}
-
-.field :deep(.p-inputtext),
-.field :deep(.p-dropdown),
-.field textarea {
+.field :deep(.p-inputnumber),
+.field :deep(.p-inputnumber-input) {
     width: 100%;
-}
-
-.field-meta {
-    display: flex;
-    justify-content: space-between;
-    min-height: 1.25rem;
-    margin-top: 0.25rem;
-    color: var(--demo-muted);
 }
 
 .course-context {
     display: flex;
-    align-items: center;
     flex-wrap: wrap;
+    align-items: center;
     gap: 0.45rem;
-    margin-top: 0.55rem;
+    margin-top: 0.25rem;
 }
 
 .course-context > span {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    margin-right: auto;
-    color: var(--demo-muted);
-    font-size: 0.8rem;
+    color: var(--muted);
+    font-size: 0.78rem;
 }
 
-.difficulty-field :deep(.p-selectbutton) {
-    display: flex;
+.file-field {
+    margin-top: 1.05rem;
 }
 
-.difficulty-field :deep(.p-button) {
-    flex: 1;
-    padding-inline: 0.55rem;
-    font-size: 0.8rem;
-}
-
-.answers-block {
-    margin: 1.25rem 0;
+.drop-zone {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.9rem;
+    min-height: 96px;
     padding: 1rem;
-    border: 1px solid #e5e9ec;
-    border-radius: 15px;
-    background: #f8fafb;
+    border: 2px dashed #ccd4d8;
+    border-radius: 13px;
+    background: #fafcfc;
+    cursor: pointer;
+    transition: border-color 160ms ease, background 160ms ease;
 }
 
-.answers-heading {
+.drop-zone:hover,
+.drop-zone.selected {
+    border-color: #e0774d;
+    background: #fff9f5;
+}
+
+.drop-zone.invalid {
+    border-color: #e24c4c;
+}
+
+.drop-zone input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.drop-icon {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 13px;
+    background: #ffeadf;
+    color: var(--accent);
+    font-size: 1.1rem;
+}
+
+.file-copy strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.browse-label {
+    padding: 0.52rem 0.72rem;
+    border-radius: 8px;
+    background: #eef1f2;
+    color: #4d5a62;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.confirmation-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    margin-top: 1rem;
+    padding: 0.9rem;
+    border-radius: 10px;
+    background: #f7f9f9;
+    color: #4f5c64;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    cursor: pointer;
+}
+
+.confirmation-error {
+    display: block;
+    margin-top: 0.3rem;
+}
+
+.submit-row {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 0.8rem;
+    margin-top: 1.1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #edf0f1;
 }
 
-.answers-heading h3 {
-    font-size: 1rem;
-}
-
-.answer-hint {
-    color: #4f7d55;
-    font-size: 0.78rem;
-    font-weight: 700;
-}
-
-.answer-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-}
-
-.answer-row {
+.submit-row > div {
     display: flex;
     align-items: center;
-    gap: 0.55rem;
-    min-width: 0;
-    margin: 0;
-    padding: 0.55rem;
-    border: 1px solid #dfe5e8;
-    border-radius: 11px;
-    background: #fff;
-    transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    gap: 0.4rem;
+    color: var(--muted);
+    font-size: 0.77rem;
 }
 
-.answer-row.answer-correct {
-    border-color: #76a87d;
-    background: #f3fbf4;
-    box-shadow: 0 0 0 2px rgba(76, 139, 84, 0.1);
+.submit-button {
+    background: var(--accent);
+    border-color: var(--accent);
 }
 
-.answer-key,
-.correct-key {
-    display: inline-grid;
-    place-items: center;
-    border-radius: 8px;
-    background: #f0e3db;
-    color: var(--demo-accent-dark);
+.history-card {
+    overflow: hidden;
+}
+
+.history-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.2rem 1.35rem;
+    border-bottom: 1px solid #e8ebed;
+}
+
+.history-heading > span {
+    padding: 0.38rem 0.65rem;
+    border-radius: 99px;
+    background: #eef2f3;
+    color: #5f6d75;
+    font-size: 0.75rem;
     font-weight: 800;
 }
 
-.answer-key {
-    width: 1.8rem;
-    height: 1.8rem;
-    flex: 0 0 auto;
+.submission-table :deep(.p-datatable-wrapper) {
+    border-radius: 0 0 16px 16px;
 }
 
-.answer-input {
-    min-width: 0;
-    flex: 1;
-}
-
-.supporting-fields {
-    padding-top: 0.1rem;
-}
-
-.file-control {
-    display: flex;
+.file-download {
+    display: inline-flex;
+    max-width: 250px;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 0.65rem;
-    padding: 0.7rem;
-    border: 1px dashed #bdc8cf;
-    border-radius: 11px;
-    background: #fbfcfc;
+    gap: 0.42rem;
+    color: #2265a8;
+    font-size: 0.82rem;
+    text-decoration: none;
 }
 
-.file-control input {
-    max-width: 100%;
+.file-download span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.file-name {
+.status-cell small {
+    max-width: 280px;
+    color: #8a5a35;
+    line-height: 1.35;
+}
+
+.review-file-link {
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    min-width: 0;
-    overflow-wrap: anywhere;
-    color: var(--demo-muted);
-    font-size: 0.78rem;
-}
-
-.image-preview {
-    width: min(100%, 360px);
-    max-height: 210px;
-    margin-top: 0.65rem;
-    border: 1px solid #e0e5e8;
-    border-radius: 12px;
-    object-fit: contain;
-}
-
-.editor-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.7rem;
-    margin-top: 1.2rem;
-}
-
-.summary-metrics {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.65rem;
-}
-
-.summary-metrics div {
-    display: grid;
-    gap: 0.15rem;
-    padding: 0.85rem;
-    border-radius: 13px;
-    background: #f5eee9;
-}
-
-.summary-metrics strong {
-    color: var(--demo-accent-dark);
-    font-size: 1.6rem;
-}
-
-.summary-metrics span {
-    color: var(--demo-muted);
+    color: #24649f;
     font-size: 0.75rem;
     font-weight: 700;
-    text-transform: uppercase;
+    text-decoration: none;
 }
 
-.workflow-list {
-    display: grid;
-    gap: 0.75rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.workflow-list li {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    color: #78858e;
-    font-size: 0.84rem;
-}
-
-.workflow-list i {
-    display: inline-grid;
-    width: 1.65rem;
-    height: 1.65rem;
-    place-items: center;
-    border-radius: 50%;
-    background: #edf0f2;
-    font-size: 0.72rem;
-}
-
-.workflow-list .complete {
-    color: #416e47;
-    font-weight: 700;
-}
-
-.workflow-list .complete i {
-    background: #dff1e2;
-}
-
-.bulk-placeholder {
-    display: flex;
-    gap: 0.7rem;
-    padding: 0.85rem;
-    border: 1px dashed #d6bcae;
-    border-radius: 12px;
-    color: var(--demo-muted);
-}
-
-.bulk-placeholder > i {
-    margin-top: 0.1rem;
-    color: #4f8c57;
-    font-size: 1.35rem;
-}
-
-.bulk-placeholder strong,
-.bulk-placeholder span {
-    display: block;
-}
-
-.bulk-placeholder strong {
-    margin-bottom: 0.2rem;
-    color: var(--demo-ink);
-    font-size: 0.82rem;
-}
-
-.bulk-placeholder span {
-    font-size: 0.75rem;
-    line-height: 1.4;
-}
-
-.draft-heading {
-    margin-bottom: 1rem;
-}
-
-.draft-empty,
-.empty-courses {
+.table-empty,
+.empty-state {
     display: grid;
     justify-items: center;
     gap: 0.5rem;
     padding: 2rem;
-    color: var(--demo-muted);
+    color: var(--muted);
     text-align: center;
 }
 
-.draft-empty i,
-.empty-courses i {
-    color: #c6d0d6;
+.table-empty i,
+.empty-state > i {
+    color: #d4a184;
     font-size: 2rem;
 }
 
-.empty-courses h2,
-.empty-courses p {
+.empty-state h2,
+.empty-state p {
     margin: 0;
 }
 
-.empty-courses h2 {
-    color: var(--demo-ink);
-    font-size: 1.15rem;
-}
-
-.question-cell {
-    display: block;
-    max-width: 460px;
-    line-height: 1.4;
-}
-
-.correct-key {
-    width: 2rem;
-    height: 2rem;
-}
-
-.row-actions {
-    display: flex;
-    gap: 0.4rem;
-}
-
-.question-preview-dialog {
-    color: var(--demo-ink);
-}
-
-.preview-meta {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 0.6rem;
-    color: var(--demo-muted);
-    font-size: 0.82rem;
-}
-
-.question-preview-dialog h3 {
-    margin: 1rem 0;
-    font-size: 1.1rem;
-    line-height: 1.55;
-}
-
-.question-preview-dialog > img {
-    width: 100%;
-    max-height: 270px;
-    margin-bottom: 1rem;
-    border-radius: 12px;
-    object-fit: contain;
-}
-
-.preview-answers {
-    display: grid;
-    gap: 0.55rem;
-}
-
-.preview-answers > div {
-    display: grid;
-    grid-template-columns: 2rem minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.7rem;
-    border: 1px solid #e1e6e9;
-    border-radius: 10px;
-}
-
-.preview-answers > div.correct {
-    border-color: #79aa80;
-    background: #f1faf3;
-    color: #37673d;
-}
-
-.preview-explanation {
-    margin-top: 1rem;
-    padding: 0.85rem;
-    border-left: 3px solid var(--demo-accent);
-    border-radius: 8px;
-    background: #fff7f2;
-}
-
-.preview-explanation p {
-    margin: 0.35rem 0 0;
-    line-height: 1.5;
-}
-
-@media (max-width: 1050px) {
-    .workspace-grid {
+@media (max-width: 980px) {
+    .workflow-grid {
         grid-template-columns: 1fr;
     }
 
-    .summary-card {
-        position: static;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .summary-top,
-    .summary-card > .p-button {
-        grid-column: 1 / -1;
+    .requirements-list {
+        grid-template-columns: 1fr 1fr;
     }
 }
 
-@media (max-width: 700px) {
-    .question-demo {
+@media (max-width: 680px) {
+    .submission-page {
         gap: 0.8rem;
     }
 
-    .demo-hero {
-        align-items: flex-start;
+    .submission-hero {
+        align-items: stretch;
+        padding: 1.2rem;
+        border-radius: 13px;
         flex-direction: column;
-        padding: 1.1rem;
-        border-radius: 16px;
     }
 
-    .hero-status {
+    .hero-actions {
         width: 100%;
-        justify-items: start;
+        min-width: 0;
     }
 
-    .editor-card,
-    .summary-card,
-    .draft-card {
+    .workflow-grid {
+        gap: 0.8rem;
+    }
+
+    .requirements-card,
+    .upload-card {
         padding: 1rem;
-        border-radius: 14px;
+        border-radius: 13px;
     }
 
-    .form-grid,
-    .answer-list,
-    .summary-card {
+    .requirements-list,
+    .form-grid {
         grid-template-columns: 1fr;
     }
 
-    .field-wide,
-    .summary-top,
-    .summary-card > .p-button {
+    .field-wide {
         grid-column: auto;
     }
 
-    .answers-heading {
-        align-items: flex-start;
+    .drop-zone {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .browse-label {
+        display: none;
+    }
+
+    .submit-row {
+        align-items: stretch;
         flex-direction: column;
-        gap: 0.45rem;
     }
 
-    .difficulty-field :deep(.p-selectbutton) {
-        flex-direction: column;
-    }
-
-    .editor-actions {
-        flex-direction: column-reverse;
-    }
-
-    .editor-actions :deep(.p-button) {
+    .submit-row :deep(.p-button) {
         width: 100%;
         justify-content: center;
     }
 
-    .course-context > span {
-        width: 100%;
-        margin-right: 0;
-    }
-
-    .draft-table :deep(.p-datatable-tbody > tr > td) {
+    .history-heading {
         align-items: flex-start;
+        padding: 1rem;
     }
 
-    .question-cell {
-        max-width: none;
-        text-align: right;
+    .submission-table :deep(.p-datatable-tbody > tr > td) {
+        display: grid;
+        grid-template-columns: minmax(90px, 34%) 1fr;
+        gap: 0.6rem;
+        align-items: start;
+        text-align: left;
+    }
+
+    .file-download,
+    .status-cell {
+        max-width: 100%;
     }
 }
 </style>

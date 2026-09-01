@@ -13,7 +13,7 @@
                     },
                 ]"
                 role="none"
-                v-show="$page.props.permissions.includes(item.permission)"
+                v-show="hasPermission(item)"
             >
                 <div v-if="item.items && root === true" class="arrow"></div>
                 <inertia-link
@@ -103,6 +103,9 @@ export default {
         },
         visible(item) {
             return typeof item.visible === "function" ? item.visible() : item.visible !== false;
+        },
+        hasPermission(item) {
+            return !item.permission || (this.$page.props.permissions || []).includes(item.permission);
         },
     },
     mounted() {

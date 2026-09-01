@@ -10,6 +10,7 @@ use App\Models\DocenteApto;
 use App\Models\Estudiante;
 use App\Models\User;
 use App\Support\DocentePreguntasDemoAccess;
+use App\Support\BancoPreguntasRevisionAccess;
 use App\Support\MediaUrl;
 
 class HandleInertiaRequests extends Middleware
@@ -102,6 +103,8 @@ class HandleInertiaRequests extends Middleware
             'features' => [
                 'docente_preguntas_demo' => app(DocentePreguntasDemoAccess::class)
                     ->permite(Auth::guard('docente')->user()),
+                'banco_preguntas_revision' => app(BancoPreguntasRevisionAccess::class)
+                    ->permite(Auth::user()),
             ],
         ]);
     }

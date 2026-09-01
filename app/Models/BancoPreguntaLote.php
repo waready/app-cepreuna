@@ -13,12 +13,24 @@ class BancoPreguntaLote extends Model implements Auditable
     public const ESTADO_EN_REVISION = 'en_revision';
     public const ESTADO_APROBADO = 'aprobado';
     public const ESTADO_OBSERVADO = 'observado';
+    public const ESTADO_RECHAZADO = 'rechazado';
+
+    public const NIVEL_BASICO = 'basico';
+    public const NIVEL_INTERMEDIO = 'intermedio';
+    public const NIVEL_AVANZADO = 'avanzado';
 
     protected $fillable = [
         'periodos_id',
         'cursos_id',
         'docentes_id',
+        'semana',
+        'nivel',
+        'cantidad_preguntas',
         'version',
+        'archivo_path',
+        'archivo_nombre',
+        'archivo_mime',
+        'archivo_size',
         'estado',
         'observacion',
         'enviado_at',
@@ -27,7 +39,10 @@ class BancoPreguntaLote extends Model implements Auditable
     ];
 
     protected $casts = [
+        'semana' => 'integer',
+        'cantidad_preguntas' => 'integer',
         'version' => 'integer',
+        'archivo_size' => 'integer',
         'enviado_at' => 'datetime',
         'revisado_at' => 'datetime',
     ];
@@ -52,9 +67,10 @@ class BancoPreguntaLote extends Model implements Auditable
         return $this->belongsTo(User::class, 'revisado_por');
     }
 
-    public function preguntas()
+    public function revisiones()
     {
-        return $this->hasMany(BancoPregunta::class, 'banco_pregunta_lote_id')
-            ->orderBy('orden');
+        return $this->hasMany(BancoPreguntaRevision::class, 'banco_pregunta_lote_id')
+            ->orderBy('created_at')
+            ->orderBy('id');
     }
 }
