@@ -35,4 +35,10 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URL'),
     ],
 
+    'banco_preguntas' => [
+        'url' => env('BANCO_PREGUNTAS_API_URL'),
+        'token' => env('BANCO_PREGUNTAS_API_TOKEN'),
+        'timeout' => (int) env('BANCO_PREGUNTAS_API_TIMEOUT', 30),
+    ],
+
 ];

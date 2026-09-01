@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers\Docente;
 
+use App\Exceptions\BancoPreguntasApiException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBancoPreguntaLoteRequest;
 use App\Models\BancoPreguntaLote;
 use App\Models\BancoPreguntaRevision;
 use App\Models\Periodo;
+use App\Services\BancoPreguntasApi;
 use App\Support\DocumentoWord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
-use RuntimeException;
-use Throwable;
 
 class PreguntasDemoController extends Controller
 {
-    public function __construct()
+    private $bancoPreguntasApi;
+
+    public function __construct(BancoPreguntasApi $bancoPreguntasApi)
     {
+        $this->bancoPreguntasApi = $bancoPreguntasApi;
         $this->middleware('auth:docente');
     }
 
@@ -100,71 +102,23 @@ class PreguntasDemoController extends Controller
             ]);
         }
 
-        $archivo = $request->file('archivo');
-        $nombreGuardado = Str::uuid().'.docx';
-        $directorio = sprintf('%d/%d/originales', $periodo->id, $cuenta->docentes_id);
-        $nombreOriginal = Str::limit(
-            basename(str_replace('\\', '/', $archivo->getClientOriginalName())),
-            255,
-            ''
-        );
-        $path = Storage::disk('banco_preguntas')->putFileAs(
-            $directorio,
-            $archivo,
-            $nombreGuardado
-        );
-
-        if (!$path) {
-            throw new RuntimeException('No se pudo almacenar el documento Word.');
-        }
+        $response = [];
 
         try {
-            DB::transaction(function () use (
-                $cuenta,
-                $cursoId,
-                $nombreOriginal,
-                $path,
-                $periodo,
-                $request,
-                $semana
-            ) {
-                $ultimaEntrega = BancoPreguntaLote::query()
-                    ->where('periodos_id', $periodo->id)
-                    ->where('cursos_id', $cursoId)
-                    ->where('docentes_id', $cuenta->docentes_id)
-                    ->where('semana', $semana)
-                    ->orderByDesc('version')
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($ultimaEntrega && $ultimaEntrega->estado !== BancoPreguntaLote::ESTADO_OBSERVADO) {
-                    throw ValidationException::withMessages([
-                        'semana' => $ultimaEntrega->estado === BancoPreguntaLote::ESTADO_EN_REVISION
-                            ? 'Ya existe una entrega en revision para este curso y semana.'
-                            : 'La entrega de este curso y semana ya tiene una decision final.',
-                    ]);
-                }
-
-                BancoPreguntaLote::create([
-                    'periodos_id' => $periodo->id,
-                    'cursos_id' => $cursoId,
-                    'docentes_id' => $cuenta->docentes_id,
-                    'semana' => $semana,
-                    'nivel' => $request->input('nivel'),
-                    'version' => $ultimaEntrega ? $ultimaEntrega->version + 1 : 1,
-                    'archivo_path' => $path,
-                    'archivo_nombre' => $nombreOriginal,
-                    'estado' => BancoPreguntaLote::ESTADO_EN_REVISION,
-                ]);
-            });
-        } catch (Throwable $exception) {
-            Storage::disk('banco_preguntas')->delete($path);
-            throw $exception;
+            $response = $this->bancoPreguntasApi->crearEntrega([
+                'periodos_id' => (int) $periodo->id,
+                'cursos_id' => $cursoId,
+                'docentes_id' => (int) $cuenta->docentes_id,
+                'semana' => $semana,
+                'nivel' => $request->input('nivel'),
+            ], $request->file('archivo'));
+        } catch (BancoPreguntasApiException $exception) {
+            $this->throwUploadException($exception);
         }
 
         return redirect()->back()->with('response', [
             'status' => true,
-            'message' => 'El Word fue enviado correctamente para revision.',
+            'message' => $response['message'] ?? 'El Word fue enviado correctamente para revision.',
         ]);
     }
 
@@ -187,10 +141,18 @@ class PreguntasDemoController extends Controller
             && (int) $lote->periodos_id === (int) $periodo->id,
             404
         );
-        abort_unless(Storage::disk('banco_preguntas')->exists($lote->archivo_path), 404);
+        $contents = $this->downloadFromApi(function () use ($cuenta, $lote, $periodo) {
+            return $this->bancoPreguntasApi->descargarEntrega(
+                $lote->id,
+                $cuenta->docentes_id,
+                $periodo->id
+            );
+        });
 
-        return Storage::disk('banco_preguntas')->download(
-            $lote->archivo_path,
+        return response()->streamDownload(
+            function () use ($contents) {
+                echo $contents;
+            },
             $lote->archivo_nombre,
             ['Content-Type' => DocumentoWord::MIME]
         );
@@ -211,13 +173,40 @@ class PreguntasDemoController extends Controller
         );
         abort_unless((int) $revision->banco_pregunta_lote_id === (int) $lote->id, 404);
         abort_unless($revision->archivo_path, 404);
-        abort_unless(Storage::disk('banco_preguntas')->exists($revision->archivo_path), 404);
 
-        return Storage::disk('banco_preguntas')->download(
-            $revision->archivo_path,
+        $contents = $this->downloadFromApi(function () use ($cuenta, $lote, $periodo) {
+            return $this->bancoPreguntasApi->descargarRevision(
+                $lote->id,
+                $cuenta->docentes_id,
+                $periodo->id
+            );
+        });
+
+        return response()->streamDownload(
+            function () use ($contents) {
+                echo $contents;
+            },
             $revision->archivo_nombre,
             ['Content-Type' => DocumentoWord::MIME]
         );
+    }
+
+    private function throwUploadException(BancoPreguntasApiException $exception)
+    {
+        if ($exception->status() === 422 && $exception->errors()) {
+            throw ValidationException::withMessages($exception->errors());
+        }
+
+        abort(503, $exception->getMessage());
+    }
+
+    private function downloadFromApi(callable $download)
+    {
+        try {
+            return $download();
+        } catch (BancoPreguntasApiException $exception) {
+            abort($exception->status() === 404 ? 404 : 503, $exception->getMessage());
+        }
     }
 
     private function persistenciaDisponible(): bool

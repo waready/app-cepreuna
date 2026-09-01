@@ -39,12 +39,17 @@ El modulo permanece controlado por una bandera y una lista de docentes:
 DOCENTE_PREGUNTAS_DEMO_ENABLED=false
 DOCENTE_PREGUNTAS_DOCENTES_IDS=
 BANCO_PREGUNTAS_MAX_FILE_KB=10240
-BANCO_PREGUNTAS_STORAGE_PATH=
+BANCO_PREGUNTAS_API_URL=https://backend.example/api
+BANCO_PREGUNTAS_API_TOKEN=una-clave-aleatoria-larga-y-exclusiva
+BANCO_PREGUNTAS_API_TIMEOUT=30
 ```
 
-`BANCO_PREGUNTAS_STORAGE_PATH` debe ser la misma ruta absoluta configurada en
-el sistema multiciclo. Los dos proyectos necesitan acceso de lectura y
-escritura a ese directorio privado.
+`CEPRE_APP` no guarda documentos del banco de preguntas. Envia el Word por una
+conexion servidor-a-servidor al backend multiciclo y tambien canaliza por esa
+API las descargas del docente. El token nunca se entrega al navegador.
+
+El backend debe configurar la misma clave en `CEPRE_APP_INTEGRATION_TOKEN` y es
+el unico proceso que necesita acceso a su almacenamiento privado.
 
 No se debe habilitar el modulo hasta que `proyecto_migracion` haya creado las
 tablas `banco_pregunta_lotes` y `banco_pregunta_revisiones`.
