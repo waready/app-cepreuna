@@ -33,10 +33,12 @@ contener tablas, formulas e imagenes.
 
 ## Configuracion
 
-El modulo permanece controlado por una bandera y una lista de docentes:
+El modulo permanece controlado por una bandera. Una lista vacia permite el
+acceso a todos los docentes autenticados; al registrar IDs, el acceso queda
+limitado a esas cuentas:
 
 ```dotenv
-DOCENTE_PREGUNTAS_DEMO_ENABLED=false
+DOCENTE_PREGUNTAS_DEMO_ENABLED=true
 DOCENTE_PREGUNTAS_DOCENTES_IDS=
 BANCO_PREGUNTAS_MAX_FILE_KB=10240
 BANCO_PREGUNTAS_API_URL=https://backend.example/api
@@ -46,7 +48,9 @@ BANCO_PREGUNTAS_API_TIMEOUT=30
 
 `CEPRE_APP` no guarda documentos del banco de preguntas. Envia el Word por una
 conexion servidor-a-servidor al backend multiciclo y tambien canaliza por esa
-API las descargas del docente. El token nunca se entrega al navegador.
+API las descargas y eliminaciones del docente. El token nunca se entrega al
+navegador. Al eliminar una entrega tambien se borran el Word original y el Word
+revisado asociado.
 
 El backend debe configurar la misma clave en `CEPRE_APP_INTEGRATION_TOKEN` y es
 el unico proceso que necesita acceso a su almacenamiento privado.

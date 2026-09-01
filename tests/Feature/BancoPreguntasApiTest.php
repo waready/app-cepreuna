@@ -80,6 +80,26 @@ class BancoPreguntasApiTest extends TestCase
         });
     }
 
+    public function test_el_docente_elimina_su_entrega_en_el_backend_central()
+    {
+        Http::fake([
+            'https://central.test/api/integraciones/cepre-app/banco-preguntas/50' => Http::response([
+                'status' => true,
+                'message' => 'Eliminado',
+            ]),
+        ]);
+
+        $response = app(BancoPreguntasApi::class)->eliminarEntrega(50, 52, 10);
+
+        $this->assertTrue($response['status']);
+        Http::assertSent(function ($request) {
+            return $request->method() === 'DELETE'
+                && $request->url() === 'https://central.test/api/integraciones/cepre-app/banco-preguntas/50'
+                && (int) $request['docentes_id'] === 52
+                && (int) $request['periodos_id'] === 10;
+        });
+    }
+
     public function test_los_errores_de_validacion_del_backend_se_conservan()
     {
         Http::fake([

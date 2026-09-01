@@ -191,6 +191,36 @@ class PreguntasDemoController extends Controller
         );
     }
 
+    public function destroy(BancoPreguntaLote $lote)
+    {
+        $cuenta = Auth::guard('docente')->user();
+        $periodo = Periodo::actual();
+        abort_unless(
+            $cuenta
+            && $periodo
+            && (int) $lote->docentes_id === (int) $cuenta->docentes_id
+            && (int) $lote->periodos_id === (int) $periodo->id,
+            404
+        );
+
+        try {
+            $response = $this->bancoPreguntasApi->eliminarEntrega(
+                $lote->id,
+                $cuenta->docentes_id,
+                $periodo->id
+            );
+        } catch (BancoPreguntasApiException $exception) {
+            throw ValidationException::withMessages([
+                'entrega' => $exception->getMessage(),
+            ]);
+        }
+
+        return redirect()->back()->with('response', [
+            'status' => true,
+            'message' => $response['message'] ?? 'La entrega y sus archivos fueron eliminados.',
+        ]);
+    }
+
     private function throwUploadException(BancoPreguntasApiException $exception)
     {
         if ($exception->status() === 422 && $exception->errors()) {

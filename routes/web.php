@@ -304,6 +304,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                             Route::post('/preguntas-demo', [PreguntasDemoController::class, 'store'])
                                 ->middleware('docente.preguntas.demo')
                                 ->name('docentes.recursos.preguntas-demo.store');
+                            Route::delete('/preguntas-demo/{lote}', [PreguntasDemoController::class, 'destroy'])
+                                ->middleware('docente.preguntas.demo')
+                                ->name('docentes.recursos.preguntas-demo.destroy');
                         //Route::put('update-sesion/{id}', 'Web\Docente\CursosController@updateSesion');
                         }
                         );

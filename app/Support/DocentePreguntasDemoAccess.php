@@ -17,6 +17,10 @@ class DocentePreguntasDemoAccess
             config('features.docente_preguntas_demo.docentes_ids', [])
         );
 
+        if ($docentesIds === []) {
+            return true;
+        }
+
         return in_array((string) $cuenta->docentes_id, $docentesIds, true);
     }
 }

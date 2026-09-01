@@ -285,8 +285,55 @@
                             </div>
                         </template>
                     </Column>
+                    <Column header="Acciones">
+                        <template #body="slotProps">
+                            <Button
+                                label="Eliminar"
+                                icon="pi pi-trash"
+                                class="p-button-sm p-button-danger p-button-text"
+                                :disabled="eliminarForm.processing"
+                                @click="solicitarEliminar(slotProps.data)"
+                            />
+                        </template>
+                    </Column>
                 </DataTable>
             </section>
+
+            <Dialog
+                v-model:visible="eliminarVisible"
+                header="Eliminar entrega"
+                :modal="true"
+                :closable="!eliminarForm.processing"
+                :style="{ width: '460px' }"
+                :breakpoints="{ '640px': '94vw' }"
+            >
+                <div class="delete-warning">
+                    <i class="pi pi-exclamation-triangle"></i>
+                    <div>
+                        <strong>Esta accion no se puede deshacer.</strong>
+                        <p>
+                            Se eliminara la entrega de
+                            <b>{{ entregaAEliminar?.curso }}</b>, su Word original y el Word
+                            revisado si existe.
+                        </p>
+                    </div>
+                </div>
+                <template #footer>
+                    <Button
+                        label="Cancelar"
+                        class="p-button-text"
+                        :disabled="eliminarForm.processing"
+                        @click="eliminarVisible = false"
+                    />
+                    <Button
+                        label="Eliminar definitivamente"
+                        icon="pi pi-trash"
+                        class="p-button-danger"
+                        :loading="eliminarForm.processing"
+                        @click="eliminarEntrega"
+                    />
+                </template>
+            </Dialog>
         </section>
     </app-layout>
 </template>
@@ -308,6 +355,8 @@ export default {
     setup(props) {
         const toast = useToast();
         const archivoKey = ref(0);
+        const eliminarVisible = ref(false);
+        const entregaAEliminar = ref(null);
         const niveles = [
             { label: "Basico", value: "basico" },
             { label: "Intermedio", value: "intermedio" },
@@ -320,6 +369,7 @@ export default {
             confirmacion_dos_preguntas: false,
             archivo: null,
         });
+        const eliminarForm = useForm({});
 
         const cursoSeleccionado = computed(() =>
             props.cursos.find((curso) => curso.id === form.curso_id)
@@ -365,6 +415,43 @@ export default {
             });
         };
 
+        const solicitarEliminar = (entrega) => {
+            entregaAEliminar.value = entrega;
+            eliminarVisible.value = true;
+        };
+
+        const eliminarEntrega = () => {
+            if (!entregaAEliminar.value || eliminarForm.processing) return;
+
+            eliminarForm.delete(
+                route(
+                    "docentes.recursos.preguntas-demo.destroy",
+                    entregaAEliminar.value.id
+                ),
+                {
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        eliminarVisible.value = false;
+                        entregaAEliminar.value = null;
+                        toast.add({
+                            severity: "success",
+                            summary: "Entrega eliminada",
+                            detail: "El registro y sus archivos fueron eliminados.",
+                            life: 3500,
+                        });
+                    },
+                    onError: (errors) => {
+                        toast.add({
+                            severity: "error",
+                            summary: "No se pudo eliminar",
+                            detail: errors.entrega || "Intenta nuevamente.",
+                            life: 4000,
+                        });
+                    },
+                }
+            );
+        };
+
         const formatoBytes = (bytes) => {
             if (!bytes) return "0 KB";
             if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
@@ -387,6 +474,10 @@ export default {
         return {
             archivoKey,
             cursoSeleccionado,
+            eliminarEntrega,
+            eliminarForm,
+            eliminarVisible,
+            entregaAEliminar,
             enviar,
             estadoLabel,
             estadoSeverity,
@@ -396,6 +487,7 @@ export default {
             niveles,
             puedeEnviar,
             seleccionarArchivo,
+            solicitarEliminar,
         };
     },
 };
@@ -851,6 +943,29 @@ export default {
     font-size: 0.75rem;
     font-weight: 700;
     text-decoration: none;
+}
+
+.delete-warning {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.85rem;
+    align-items: start;
+    padding: 0.9rem;
+    border: 1px solid #f3c6c6;
+    border-radius: 11px;
+    background: #fff5f5;
+    color: #7e2929;
+}
+
+.delete-warning > i {
+    margin-top: 0.15rem;
+    font-size: 1.25rem;
+}
+
+.delete-warning p {
+    margin: 0.35rem 0 0;
+    color: #765353;
+    line-height: 1.45;
 }
 
 .table-empty,

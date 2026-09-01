@@ -61,6 +61,25 @@ class BancoPreguntasApi
         );
     }
 
+    public function eliminarEntrega($loteId, $docenteId, $periodoId)
+    {
+        try {
+            $response = $this->client()->delete($this->url('/'.(int) $loteId), [
+                'docentes_id' => (int) $docenteId,
+                'periodos_id' => (int) $periodoId,
+            ]);
+        } catch (ConnectionException $exception) {
+            throw new BancoPreguntasApiException(
+                'El servicio central de documentos no esta disponible.',
+                503
+            );
+        }
+
+        $this->ensureSuccessful($response);
+
+        return $response->json();
+    }
+
     private function download($url, $docenteId, $periodoId)
     {
         try {
