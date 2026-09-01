@@ -70,6 +70,98 @@ class PagoController extends Controller
         ];
     }
 
+    protected function tipoTarifa(Inscripciones $inscripcion): string
+    {
+        switch ((string) $inscripcion->tipo_estudiante) {
+            case '1':
+                return '1';
+            case '2':
+            case '3':
+            case '4':
+            case '6':
+                return '2';
+            default:
+                return '0';
+        }
+    }
+
+    protected function tarifarioPeriodoActual($idEstudiante, Periodo $periodo, Inscripciones $inscripcion)
+    {
+        $tarifarioGuardado = TarifaEstudiante::where([
+            ['estudiantes_id', $idEstudiante],
+            ['periodos_id', $periodo->id]
+        ])
+            ->orderBy('nro_cuota', 'asc')
+            ->get();
+
+        if ($tarifarioGuardado->count() === 5) {
+            return $tarifarioGuardado;
+        }
+
+        $estudiante = $inscripcion->estudiante()->with('colegio')->first();
+        $tipoColegio = optional(optional($estudiante)->colegio)->tipo_colegios_id;
+        $tipoTarifa = $this->tipoTarifa($inscripcion);
+
+        if (! $estudiante || ! $tipoColegio || $tipoTarifa === '0') {
+            return collect();
+        }
+
+        $tarifasBase = Tarifa::where([
+            ['periodos_id', $periodo->id],
+            ['modalidad', $inscripcion->modalidad],
+            ['tipo_estudiante', $tipoTarifa],
+            ['tipo_colegios_id', $tipoColegio],
+            ['estado', '1']
+        ])
+            ->whereIn('concepto_pagos_id', [1, 2])
+            ->get()
+            ->keyBy(function ($tarifa) {
+                return (int) $tarifa->concepto_pagos_id;
+            });
+
+        $tarifaInscripcion = $tarifasBase->get(1);
+        $tarifaMensual = $tarifasBase->get(2);
+
+        if (! $tarifaInscripcion || ! $tarifaMensual) {
+            return collect();
+        }
+
+        $saldoPagado = (float) InscripcionPago::where('inscripciones_id', $inscripcion->id)
+            ->where('concepto_pagos_id', '!=', '3')
+            ->sum('monto');
+        $saldoMora = (float) InscripcionPago::where([
+            ['inscripciones_id', $inscripcion->id],
+            ['concepto_pagos_id', '3']
+        ])->sum('monto');
+        $tarifario = collect();
+
+        for ($nroCuota = 0; $nroCuota <= 4; $nroCuota++) {
+            $monto = (float) ($nroCuota === 0 ? $tarifaInscripcion->importe : $tarifaMensual->importe);
+            $pagado = min($saldoPagado, $monto);
+            $saldoPagado = max(0, $saldoPagado - $pagado);
+            $mora = $nroCuota === 0 ? 0 : min($saldoMora, 30);
+            $saldoMora = max(0, $saldoMora - $mora);
+
+            $tarifario->push((object) [
+                'periodos_id' => $periodo->id,
+                'monto' => number_format($monto, 2, '.', ''),
+                'pagado' => number_format($pagado, 2, '.', ''),
+                'mora' => number_format($mora, 2, '.', ''),
+                'nro_cuota' => $nroCuota,
+                'modalidad' => $inscripcion->modalidad,
+                'tipo_estudiante' => $inscripcion->tipo_estudiante,
+                'estudiantes_id' => $idEstudiante,
+            ]);
+        }
+
+        if ($saldoPagado > 0 && $tarifario->isNotEmpty()) {
+            $ultimaTarifa = $tarifario->last();
+            $ultimaTarifa->pagado = number_format((float) $ultimaTarifa->pagado + $saldoPagado, 2, '.', '');
+        }
+
+        return $tarifario;
+    }
+
 
     public function index()
     {
@@ -123,38 +215,46 @@ class PagoController extends Controller
                 $descuento = '';
                 break;
         }
-        $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", "<=", $response['cronograma']->nro_cuota]])->get();
+        $tarifario = $this->tarifarioPeriodoActual($idEstudiante, $periodo, $inscripcion);
+        $tarifaEstudiante = $tarifario->filter(function ($tarifa) use ($response) {
+            return (int) $tarifa->nro_cuota <= (int) $response['cronograma']->nro_cuota;
+        });
         $deuda = 0;
         foreach ($tarifaEstudiante as $key => $value) {
+            $pendiente = max(0, (float) $value->monto - (float) $value->pagado);
 
-            if ($value->nro_cuota == 0) {
-                $deuda = $deuda + $value->monto - $value->pagado;
+            if ($pendiente <= 0) {
+                continue;
+            }
+
+            if ((int) $value->nro_cuota === 0) {
+                $deuda += $pendiente;
             } else {
+                $crono = CronogramaPago::where([
+                    ["periodos_id", $periodo->id],
+                    ["nro_cuota", $value->nro_cuota]
+                ])->first();
 
-                if ($value->monto - $value->pagado <= 0) {
-                    $deuda = 0;
+                if (! $crono || date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin))) {
+                    $deuda += $pendiente;
                 } else {
-                    $crono = CronogramaPago::where("nro_cuota", $value->nro_cuota)->first();
-                    if (date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin))) {
-                        $deuda = $deuda + $value->monto - $value->pagado;
-                    } else {
-                        $deuda = $deuda + $value->monto - $value->pagado + 30.00 - $value->mora;
-                    }
+                    $deuda += $pendiente + max(0, 30 - (float) $value->mora);
                 }
             }
         }
         $response['deuda'] = number_format($deuda, 2);
         $response['tipo_descuento'] = $descuento;
         $response['vouchers'] = $this->getVouchersPago();
-        $response['tarifario'] = $tarifaEstudiante = TarifaEstudiante::where("estudiantes_id", $idEstudiante)->get();
+        $response['tarifario'] = $tarifario;
         $response['url'] = config('app.external_image_url');
         $estudiante = Estudiante::where('estudiantes.id', $idEstudiante)->first();
 
-        $json = file_get_contents('data_puntaje.json');
-        $obj = json_decode($json);
-        $key = array_search($estudiante->nro_documento, array_column($obj, 'user'));
+        $puntajesPath = public_path('data_puntaje.json');
+        $json = is_file($puntajesPath) ? file_get_contents($puntajesPath) : false;
+        $obj = $json === false ? [] : (json_decode($json) ?: []);
+        $key = array_search($estudiante->nro_documento, array_column($obj, 'user'), true);
         // dd();
-        if (!$key) {
+        if ($key === false) {
             $response["simulacro"] = false;
             $response["usuario"] = "";
             $response["puntaje"] = "";
@@ -186,7 +286,6 @@ class PagoController extends Controller
             ];
         }
 
-        $estudiante = $inscripcion->estudiante()->with('colegio')->first();
         $response['total_pagado'] = InscripcionPago::where([['inscripciones_id', $inscripcion->id], ['concepto_pagos_id', '!=', '3']])->sum('monto');
         $response['cronograma'] = CronogramaPago::select('nro_cuota')
             ->where([
@@ -205,46 +304,15 @@ class PagoController extends Controller
             ];
         }
 
-        $descuento = '0';
-        switch ($inscripcion->tipo_estudiante) {
-            case '1':
-                $descuento = '1';
-                break;
-            case '2':
-                $descuento = '2';
-                break;
-            case '3':
-                $descuento = '2';
-                break;
-            case '4':
-                $descuento = '2';
-                break;
-            case '6':
-                $descuento = '2';
-                break;
-            default:
-                $descuento = '0';
-                break;
-        }
-        // dd($descuento);
-        if ($descuento == '0') {
-            $response['total_pagar'] = 0;
-        } else {
-            $tarifaInscripcion = Tarifa::where([
-                ['modalidad', $inscripcion->modalidad],
-                ['concepto_pagos_id', '1'],
-                ['tipo_estudiante', $descuento]
-            ])->first();
+        $tarifario = $this->tarifarioPeriodoActual($idEstudiante, $periodo, $inscripcion);
+        $response['total_pagar'] = $tarifario
+            ->filter(function ($tarifa) use ($response) {
+                return (int) $tarifa->nro_cuota <= (int) $response['cronograma']->nro_cuota;
+            })
+            ->sum(function ($tarifa) {
+                return (float) $tarifa->monto;
+            });
 
-            $tarifaMensual = Tarifa::where([
-                ['modalidad', $inscripcion->modalidad],
-                ['concepto_pagos_id', '2'],
-                ['tipo_estudiante', $descuento]
-            ])->first();
-
-            $response['total_pagar'] = floatVal($tarifaInscripcion->importe) + floatVal($tarifaMensual->importe * $response['cronograma']->nro_cuota);
-        }
-        // dd($tarifaMensual->importe.'-'.$tarifaInscripcion->importe);
         return $response;
     }
     public function getVouchersPago()
@@ -524,7 +592,14 @@ class PagoController extends Controller
                                 $mensualPago->save();
                                 // ambas validaciones correctas
                                 // SELECT * FROM tarifa_estudiantes AS te WHERE te.monto != te.pagado AND te.estudiantes_id=14 ORDER BY te.id ASC LIMIT 1;
-                                $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], [DB::raw("monto"), "!=", DB::raw("pagado")]])->orderBy("id", "asc")->get();
+                                $tarifaEstudiante = TarifaEstudiante::where([
+                                    ["estudiantes_id", $idEstudiante],
+                                    ["periodos_id", $inscripcion->periodos_id]
+                                ])
+                                    ->whereColumn("monto", "!=", "pagado")
+                                    ->orderBy("nro_cuota", "asc")
+                                    ->orderBy("id", "asc")
+                                    ->get();
                                 $deudaCuota = 0;
                                 // $pagoActual =
                                 if ($bancoPagoValidacion->cuenta == '0701010736') {
@@ -536,7 +611,10 @@ class PagoController extends Controller
                                 foreach ($tarifaEstudiante as $key => $tarifa) {
                                     $deudaCuota = $tarifa->monto - $tarifa->pagado;
                                     // $pagar = $validarDocumento->imp_pag
-                                    $crono = CronogramaPago::where("nro_cuota", $tarifa->nro_cuota)->first();
+                                    $crono = CronogramaPago::where([
+                                        ["periodos_id", $inscripcion->periodos_id],
+                                        ["nro_cuota", $tarifa->nro_cuota]
+                                    ])->first();
                                     if (strtotime($validarDocumento->fch_pag) > strtotime($crono->fin)) {
 
                                         if ($restoActual >= $deudaCuota + 30) {
@@ -577,10 +655,17 @@ class PagoController extends Controller
                                     }
                                 }
 
-                                if ($restoActual > 0) {
-                                    $storeTarifa = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", 4]])->orderBy("id", "asc")->first();
-                                    $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
-                                    $storeTarifa->save();
+                                if ($restoActual > 0 && $tarifaEstudiante->isNotEmpty()) {
+                                    $storeTarifa = TarifaEstudiante::where([
+                                        ["estudiantes_id", $idEstudiante],
+                                        ["periodos_id", $inscripcion->periodos_id],
+                                        ["nro_cuota", 4]
+                                    ])->orderBy("id", "asc")->first();
+
+                                    if ($storeTarifa) {
+                                        $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
+                                        $storeTarifa->save();
+                                    }
                                 }
 
                                 DB::commit();

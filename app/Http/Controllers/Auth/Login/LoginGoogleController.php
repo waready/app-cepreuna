@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth\Login;
 
 use App\Http\Controllers\Controller;
 // use Illuminate\Foundation\Auth\AuthenticatesUsers;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Http\Request;
@@ -37,9 +38,126 @@ class LoginGoogleController extends Controller
 
     protected function syncUserRole($user, string $roleName): void
     {
-        if ($user && ! $user->hasRole($roleName)) {
-            $user->assignRole($roleName);
+        if (! $user) {
+            return;
         }
+
+        $user->unsetRelation('roles');
+
+        if ($user->hasRole($roleName)) {
+            return;
+        }
+
+        try {
+            $user->assignRole($roleName);
+        } catch (QueryException $exception) {
+            // Some legacy records already have the pivot row even when the
+            // permission package does not resolve it through hasRole().
+            if ((int) ($exception->errorInfo[1] ?? 0) !== 1062) {
+                throw $exception;
+            }
+        }
+    }
+
+    protected function loginWithGuard(Request $request, $user, string $guard, string $roleName)
+    {
+        $this->guard = $guard;
+        $this->syncUserRole($user, $roleName);
+
+        Auth::guard($guard)->login($user);
+        $request->session()->regenerate();
+
+        return $this->redirectByRole($roleName);
+    }
+
+    protected function accessDenied(string $message = 'Acceso Denegado')
+    {
+        return redirect()->route('loginHome')->with('response', [
+            'status' => false,
+            'message' => $message,
+        ]);
+    }
+
+    protected function finishLogin(Request $request, $docenteApto, $estudiante)
+    {
+        $inscripcion = $estudiante
+            ? Inscripciones::query()
+                ->delEstudiante($estudiante->id)
+                ->delPeriodoActual()
+                ->where([
+                    ['matricula', '1'],
+                    ['estado', '1'],
+                ])
+                ->latest('id')
+                ->first()
+            : null;
+
+        if ($docenteApto) {
+            return $this->loginWithGuard($request, $docenteApto, 'docente', 'Docente');
+        }
+
+        if ($inscripcion) {
+            return $this->loginWithGuard($request, $estudiante, 'estudiante', 'Estudiante');
+        }
+
+        return $this->accessDenied(
+            'La cuenta no corresponde a un docente o estudiante habilitado en el periodo actual.'
+        );
+    }
+
+    protected function verifiedGoogleEmail($googleUser): ?string
+    {
+        $providerData = is_array($googleUser->user ?? null) ? $googleUser->user : [];
+        $verified = $providerData['email_verified']
+            ?? $providerData['verified_email']
+            ?? false;
+        $email = strtolower(trim((string) $googleUser->getEmail()));
+
+        if (! filter_var($verified, FILTER_VALIDATE_BOOLEAN)
+            || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return null;
+        }
+
+        return $email;
+    }
+
+    protected function findGoogleTeacher($periodoId, string $googleId, ?string $email)
+    {
+        $docenteApto = DocenteApto::query()
+            ->habilitadoEnPeriodo($periodoId)
+            ->conIdentidadGoogle($googleId)
+            ->first();
+
+        if ($docenteApto || ! $email) {
+            return $docenteApto;
+        }
+
+        return DocenteApto::query()
+            ->habilitadoEnPeriodo($periodoId)
+            ->where(function ($identity) use ($email) {
+                $identity->whereRaw('LOWER(usuario) = ?', [$email])
+                    ->orWhereHas('docente', function ($docente) use ($email) {
+                        $docente->whereRaw('LOWER(usuario) = ?', [$email])
+                            ->orWhereRaw('LOWER(email) = ?', [$email]);
+                    });
+            })
+            ->first();
+    }
+
+    protected function findGoogleStudent(string $googleId, ?string $email)
+    {
+        $estudiante = Estudiante::where('idgsuite', $googleId)->first();
+
+        if ($estudiante || ! $email) {
+            return $estudiante;
+        }
+
+        return Estudiante::query()
+            ->where(function ($identity) use ($email) {
+                $identity->whereRaw('LOWER(usuario) = ?', [$email])
+                    ->orWhereRaw('LOWER(email) = ?', [$email]);
+            })
+            ->first();
     }
 
     protected function redirectByRole(string $roleName)
@@ -61,60 +179,27 @@ class LoginGoogleController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function handleProviderCallback()
+    public function handleProviderCallback(Request $request)
     {
-        $user = Socialite::driver('google')->stateless()->user();
-        // dd($user);
+        try {
+            $googleUser = Socialite::driver('google')->user();
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return $this->accessDenied(
+                'No se pudo validar la cuenta de Google. Intente iniciar sesión nuevamente.'
+            );
+        }
+
+        $googleId = (string) $googleUser->getId();
+        $googleEmail = $this->verifiedGoogleEmail($googleUser);
         $periodo = Periodo::actual();
         $docenteApto = $periodo
-            ? DocenteApto::query()
-                ->habilitadoEnPeriodo($periodo->id)
-                ->conIdentidadGoogle($user->id)
-                ->first()
+            ? $this->findGoogleTeacher($periodo->id, $googleId, $googleEmail)
             : null;
-        $estudiante = Estudiante::where('idgsuite', $user->id)->first();
-        $idEstudiante = $estudiante ? $estudiante->id : '';
-        // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::query()
-            ->delEstudiante($idEstudiante)
-            ->delPeriodoActual()
-            ->where([
-                ['matricula', '1'],
-                ['estado', '1'],
-            ])
-            ->latest('id')
-            ->first();
+        $estudiante = $this->findGoogleStudent($googleId, $googleEmail);
 
-
-        if ($docenteApto) {
-            $this->guard = 'docente';
-            $this->syncUserRole($docenteApto, 'Docente');
-
-            Auth::guard('docente')->login($docenteApto);
-
-            // $usuario = Auth::guard('docente')->user();
-            // dd($usuario);
-            return $this->redirectByRole('Docente');
-            // return Inertia::render('Dashboard');
-        } elseif ($inscripcion) {
-        
-            $this->guard = 'estudiante';
-            $this->syncUserRole($estudiante, 'Estudiante');
-
-            Auth::guard('estudiante')->login($estudiante);
-
-            // $usuario = Auth::guard('docente')->user();
-            // dd($usuario);
-            return $this->redirectByRole('Estudiante');
-            // return Inertia::render('Dashboard');
-        } else {
-            // Auth::login($findUser);
-            // return redirect('/web/login')->with('status', 'Acceso Denegado');
-            $response["status"] = false;
-            $response["message"] = 'Acceso Denegado';
-
-            return redirect()->back()->with('response', $response);
-        }
+        return $this->finishLogin($request, $docenteApto, $estudiante);
     }
     public function logout()
     {
@@ -137,7 +222,8 @@ class LoginGoogleController extends Controller
         return redirect('/');
     }
 
-    public function loginSinGsuit(request $request){
+    public function loginSinGsuit(Request $request)
+    {
         $credenciales = $request->validate([
             'email' => 'required|string',
             'password' => 'required|string',
@@ -154,71 +240,7 @@ class LoginGoogleController extends Controller
             ['usuario', $credenciales['email']],
             ['password', $credenciales['password']],
         ])->first();
-        $idEstudiante = $estudiante ? $estudiante->id : '';
-        #return $idEstudiante;
-        // validar periodo para el siguiente proceso
-        $inscripcion = Inscripciones::query()
-            ->delEstudiante($idEstudiante)
-            ->delPeriodoActual()
-            ->where([
-                ['matricula', '1'],
-                ['estado', '1'],
-            ])
-            ->latest('id')
-            ->first();
-        
 
-
-        if ($docenteApto) {
-
-        	/*if($request->email == 'd_razapana@cepreuna.edu.pe'){
-				    if (! $docenteApto->hasRole('Docente')) {
-        				$docenteApto->assignRole('Docente');
-			    	}
-
-			    //if (! $docenteApto->hasPermissionTo('menu dashboard')) {
-			    //    $docenteApto->givePermissionTo('menu dashboard');
-			   // }
-        	}*/
-
-        
-            $this->guard = 'docente';
-            $this->syncUserRole($docenteApto, 'Docente');
-
-            Auth::guard('docente')->login($docenteApto);
-
-            // $usuario = Auth::guard('docente')->user();
-            // dd($usuario);
-            return $this->redirectByRole('Docente');
-            // return Inertia::render('Dashboard');
-        } elseif ($inscripcion) {
-        	/*if($request->email == '60341156@cepreuna.edu.pe'){
-				    if (! $estudiante->hasRole('Estudiante')) {
-        				$estudiante->assignRole('Estudiante');
-			    	}
-
-			    //if (! $estudiante->hasPermissionTo('menu dashboard')) {
-			    //    $estudiante->givePermissionTo('menu dashboard');
-			   // }
-        	}*/
-
-            $this->guard = 'estudiante';
-            $this->syncUserRole($estudiante, 'Estudiante');
-
-            Auth::guard('estudiante')->login($estudiante);
-
-            // $usuario = Auth::guard('docente')->user();
-            // dd($usuario);
-            return $this->redirectByRole('Estudiante');
-            // return Inertia::render('Dashboard');
-        } else {
-            // Auth::login($findUser);
-            // return redirect('/web/login')->with('status', 'Acceso Denegado');
-            $response["status"] = false;
-            $response["message"] = 'Acceso Denegado';
-
-            return redirect()->back()->with('response', $response);
-        }
-
+        return $this->finishLogin($request, $docenteApto, $estudiante);
     }
 }
