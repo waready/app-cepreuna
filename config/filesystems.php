@@ -49,7 +49,8 @@ return [
         ],
         'banco_preguntas' => [
             'driver' => 'local',
-            'root' => storage_path('app/banco-preguntas'),
+            'root' => env('BANCO_PREGUNTAS_STORAGE_PATH')
+                ?: storage_path('app/banco-preguntas'),
         ],
         'publicaciones' => [
             'driver' => 'local',

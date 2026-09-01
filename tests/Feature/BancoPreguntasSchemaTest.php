@@ -87,46 +87,6 @@ class BancoPreguntasSchemaTest extends TestCase
         $this->assertNull(BancoPreguntaRevision::UPDATED_AT);
     }
 
-    public function test_las_migraciones_no_reintroducen_campos_redundantes()
-    {
-        $lotes = file_get_contents(database_path(
-            'migrations/2026_08_31_000001_create_banco_pregunta_lotes_table.php'
-        ));
-        $revisiones = file_get_contents(database_path(
-            'migrations/2026_08_31_000002_create_banco_pregunta_revisiones_table.php'
-        ));
-
-        foreach ([
-            'cantidad_preguntas',
-            'archivo_mime',
-            'archivo_size',
-            'observacion',
-            'enviado_at',
-            'revisado_at',
-            'revisado_por',
-        ] as $campo) {
-            $this->assertStringNotContainsString($campo, $lotes);
-        }
-
-        foreach (['archivo_mime', 'archivo_size', 'updated_at'] as $campo) {
-            $this->assertStringNotContainsString($campo, $revisiones);
-        }
-    }
-
-    public function test_existen_dos_migraciones_separadas_y_reversibles()
-    {
-        $archivos = glob(database_path('migrations/2026_08_31_*_banco_pregunta*.php'));
-
-        $this->assertCount(2, $archivos);
-
-        foreach ($archivos as $archivo) {
-            $contenido = file_get_contents($archivo);
-
-            $this->assertStringContainsString('Schema::create', $contenido);
-            $this->assertStringContainsString('Schema::dropIfExists', $contenido);
-        }
-    }
-
     public function test_la_plantilla_proporcionada_es_un_docx_valido()
     {
         $path = resource_path('templates/modelo-preguntas.docx');

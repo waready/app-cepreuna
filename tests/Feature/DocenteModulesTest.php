@@ -8,9 +8,7 @@ use App\Http\Middleware\EnsureCurrentTeacherPeriod;
 use App\Models\CargaAcademica;
 use App\Models\DocenteApto;
 use App\Models\Sesiones;
-use App\Models\User;
 use App\Services\GrupoAulaContactService;
-use App\Support\BancoPreguntasRevisionAccess;
 use App\Support\DocentePreguntasDemoAccess;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -212,42 +210,4 @@ class DocenteModulesTest extends TestCase
         }
     }
 
-    public function test_la_revision_esta_apagada_y_limitada_a_usuarios_seleccionados()
-    {
-        $usuario = new User();
-        $usuario->id = 17;
-
-        config()->set('features.banco_preguntas_revision.enabled', false);
-        config()->set('features.banco_preguntas_revision.usuarios_ids', ['17']);
-        $this->assertFalse(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
-
-        config()->set('features.banco_preguntas_revision.enabled', true);
-        $this->assertTrue(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
-        $this->assertFalse(
-            app(BancoPreguntasRevisionAccess::class)->permite(new DocenteApto())
-        );
-
-        $usuario->id = 18;
-        $this->assertFalse(app(BancoPreguntasRevisionAccess::class)->permite($usuario));
-    }
-
-    public function test_las_rutas_de_revision_exigen_la_lista_blanca_administrativa()
-    {
-        $rutas = [
-            'banco-preguntas.revision.index' => ['GET', 'HEAD'],
-            'banco-preguntas.revision.download' => ['GET', 'HEAD'],
-            'banco-preguntas.revision.download-revision' => ['GET', 'HEAD'],
-            'banco-preguntas.revision.decision' => ['POST'],
-        ];
-
-        foreach ($rutas as $nombre => $metodos) {
-            $route = app('router')->getRoutes()->getByName($nombre);
-
-            $this->assertNotNull($route);
-            $this->assertSame($metodos, $route->methods());
-            $this->assertContains('auth:sanctum', $route->gatherMiddleware());
-            $this->assertContains('verified', $route->gatherMiddleware());
-            $this->assertContains('banco.preguntas.revision', $route->gatherMiddleware());
-        }
-    }
 }

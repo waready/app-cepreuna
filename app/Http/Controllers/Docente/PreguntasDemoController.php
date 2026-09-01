@@ -179,7 +179,14 @@ class PreguntasDemoController extends Controller
     public function download(BancoPreguntaLote $lote)
     {
         $cuenta = Auth::guard('docente')->user();
-        abort_unless($cuenta && (int) $lote->docentes_id === (int) $cuenta->docentes_id, 404);
+        $periodo = Periodo::actual();
+        abort_unless(
+            $cuenta
+            && $periodo
+            && (int) $lote->docentes_id === (int) $cuenta->docentes_id
+            && (int) $lote->periodos_id === (int) $periodo->id,
+            404
+        );
         abort_unless(Storage::disk('banco_preguntas')->exists($lote->archivo_path), 404);
 
         return Storage::disk('banco_preguntas')->download(
@@ -194,7 +201,14 @@ class PreguntasDemoController extends Controller
         BancoPreguntaRevision $revision
     ) {
         $cuenta = Auth::guard('docente')->user();
-        abort_unless($cuenta && (int) $lote->docentes_id === (int) $cuenta->docentes_id, 404);
+        $periodo = Periodo::actual();
+        abort_unless(
+            $cuenta
+            && $periodo
+            && (int) $lote->docentes_id === (int) $cuenta->docentes_id
+            && (int) $lote->periodos_id === (int) $periodo->id,
+            404
+        );
         abort_unless((int) $revision->banco_pregunta_lote_id === (int) $lote->id, 404);
         abort_unless($revision->archivo_path, 404);
         abort_unless(Storage::disk('banco_preguntas')->exists($revision->archivo_path), 404);

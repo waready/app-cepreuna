@@ -22,7 +22,6 @@ use App\Http\Controllers\Web\TramitePago\TramitePagoController;
 use App\Http\Controllers\Web\DocenteApto\DocenteAptoController;
 use App\Http\Controllers\Docente\CursosController as CursosDocente;
 use App\Http\Controllers\Docente\PreguntasDemoController;
-use App\Http\Controllers\BancoPreguntas\RevisionController as RevisionBancoPreguntas;
 
 //Social Network
 use App\Http\Controllers\RedSocial\PublicationController;
@@ -158,21 +157,6 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
             Route::get('/get-ciclos', [RecursoController::class , 'getCiclos'])->name('recursos.get-ciclos');
         }
         );
-
-        Route::prefix('banco-preguntas')
-            ->middleware('banco.preguntas.revision')
-            ->group(function () {
-                Route::get('/revision', [RevisionBancoPreguntas::class, 'index'])
-                    ->name('banco-preguntas.revision.index');
-                Route::get('/revision/{lote}/archivo', [RevisionBancoPreguntas::class, 'download'])
-                    ->name('banco-preguntas.revision.download');
-                Route::get(
-                    '/revision/{lote}/archivos/{revision}',
-                    [RevisionBancoPreguntas::class, 'downloadRevision']
-                )->name('banco-preguntas.revision.download-revision');
-                Route::post('/revision/{lote}', [RevisionBancoPreguntas::class, 'decidir'])
-                    ->name('banco-preguntas.revision.decision');
-            });
 
         Route::group(['middleware' => ['permission:menu dashboard']], function () {
             Route::get('/dashboard', [DashboardController::class , 'index'])->name('dashboard');

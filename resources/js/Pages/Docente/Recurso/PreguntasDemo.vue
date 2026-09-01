@@ -3,7 +3,7 @@
         <section class="submission-page">
             <header class="submission-hero">
                 <div>
-                    <span class="hero-kicker">Piloto para docentes seleccionados</span>
+                    <span class="hero-kicker">Banco de preguntas</span>
                     <h1>Entrega tus preguntas en Word</h1>
                     <p>
                         Presenta un documento editable por curso y semana. El equipo revisor
@@ -31,8 +31,8 @@
                 :closable="false"
                 class="module-notice"
             >
-                Vista previa: el envio permanecera bloqueado hasta que se aprueben e instalen
-                las tablas del modulo. No se ha modificado la base de datos actual.
+                El envio permanecera bloqueado hasta que el sistema multiciclo instale las
+                tablas del modulo.
             </Message>
 
             <div v-if="!cursos.length" class="empty-state">

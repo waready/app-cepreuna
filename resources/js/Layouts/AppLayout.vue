@@ -111,15 +111,6 @@ export default {
                     items: [],
                 },
                 {
-                    label: "Revision de preguntas",
-                    path: "banco-preguntas",
-                    icon: "pi pi-fw pi-file",
-                    to: "banco-preguntas.revision.index",
-                    sizeIcon: "17px",
-                    badge: "Piloto",
-                    visible: () => this.$page.props.features?.banco_preguntas_revision === true,
-                },
-                {
                     label: "Configuracion",
                     path: "configuracion",
                     icon: "pi pi-cog",
@@ -292,7 +283,6 @@ export default {
                             sizeIcon: "7px",
                             to: "docentes.recursos.preguntas-demo",
                             permission: "panel docente",
-                            badge: "Demo",
                             visible: () => this.$page.props.features?.docente_preguntas_demo === true,
                         },
                     ],
