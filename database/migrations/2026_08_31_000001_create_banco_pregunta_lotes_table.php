@@ -15,17 +15,10 @@ class CreateBancoPreguntaLotesTable extends Migration
             $table->foreignId('docentes_id')->constrained('docentes')->restrictOnDelete();
             $table->unsignedTinyInteger('semana');
             $table->string('nivel', 20);
-            $table->unsignedTinyInteger('cantidad_preguntas')->default(2);
             $table->unsignedInteger('version')->default(1);
             $table->string('archivo_path', 1024);
             $table->string('archivo_nombre');
-            $table->string('archivo_mime', 150);
-            $table->unsignedBigInteger('archivo_size');
-            $table->string('estado', 20)->default('borrador');
-            $table->text('observacion')->nullable();
-            $table->timestamp('enviado_at')->nullable();
-            $table->timestamp('revisado_at')->nullable();
-            $table->foreignId('revisado_por')->nullable()->constrained('users')->nullOnDelete();
+            $table->string('estado', 20)->default('en_revision');
             $table->timestamps();
 
             $table->unique(

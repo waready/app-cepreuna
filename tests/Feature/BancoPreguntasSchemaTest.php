@@ -29,6 +29,10 @@ class BancoPreguntasSchemaTest extends TestCase
         $this->assertSame('docentes_id', $lote->docente()->getForeignKeyName());
         $this->assertSame(
             'banco_pregunta_lote_id',
+            $lote->revision()->getForeignKeyName()
+        );
+        $this->assertSame(
+            'banco_pregunta_lote_id',
             $revision->lote()->getForeignKeyName()
         );
         $this->assertSame('users_id', $revision->usuario()->getForeignKeyName());
@@ -52,9 +56,61 @@ class BancoPreguntasSchemaTest extends TestCase
     {
         $reglas = (new StoreBancoPreguntaLoteRequest())->rules();
 
-        $this->assertContains('in:2', $reglas['cantidad_preguntas']);
+        $this->assertArrayNotHasKey('cantidad_preguntas', $reglas);
         $this->assertContains('accepted', $reglas['confirmacion_dos_preguntas']);
         $this->assertContains('file', $reglas['archivo']);
+    }
+
+    public function test_los_modelos_solo_permiten_los_campos_minimos()
+    {
+        $this->assertSame([
+            'periodos_id',
+            'cursos_id',
+            'docentes_id',
+            'semana',
+            'nivel',
+            'version',
+            'archivo_path',
+            'archivo_nombre',
+            'estado',
+        ], (new BancoPreguntaLote())->getFillable());
+
+        $this->assertSame([
+            'banco_pregunta_lote_id',
+            'users_id',
+            'accion',
+            'comentario',
+            'archivo_path',
+            'archivo_nombre',
+        ], (new BancoPreguntaRevision())->getFillable());
+
+        $this->assertNull(BancoPreguntaRevision::UPDATED_AT);
+    }
+
+    public function test_las_migraciones_no_reintroducen_campos_redundantes()
+    {
+        $lotes = file_get_contents(database_path(
+            'migrations/2026_08_31_000001_create_banco_pregunta_lotes_table.php'
+        ));
+        $revisiones = file_get_contents(database_path(
+            'migrations/2026_08_31_000002_create_banco_pregunta_revisiones_table.php'
+        ));
+
+        foreach ([
+            'cantidad_preguntas',
+            'archivo_mime',
+            'archivo_size',
+            'observacion',
+            'enviado_at',
+            'revisado_at',
+            'revisado_por',
+        ] as $campo) {
+            $this->assertStringNotContainsString($campo, $lotes);
+        }
+
+        foreach (['archivo_mime', 'archivo_size', 'updated_at'] as $campo) {
+            $this->assertStringNotContainsString($campo, $revisiones);
+        }
     }
 
     public function test_existen_dos_migraciones_separadas_y_reversibles()

@@ -7,6 +7,7 @@ use App\Http\Requests\StoreBancoPreguntaLoteRequest;
 use App\Models\BancoPreguntaLote;
 use App\Models\BancoPreguntaRevision;
 use App\Models\Periodo;
+use App\Support\DocumentoWord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -36,33 +37,30 @@ class PreguntasDemoController extends Controller
 
         if ($persistenciaDisponible) {
             $entregas = BancoPreguntaLote::query()
-                ->with(['curso:id,denominacion', 'revisor:id,name', 'revisiones'])
+                ->with(['curso:id,denominacion', 'revision'])
                 ->where('docentes_id', $cuenta->docentes_id)
                 ->where('periodos_id', $periodo->id)
                 ->orderByDesc('created_at')
                 ->get()
                 ->map(function (BancoPreguntaLote $lote) {
-                    $ultimaRevision = $lote->revisiones->last();
+                    $revision = $lote->revision;
 
                     return [
                         'id' => $lote->id,
                         'curso' => optional($lote->curso)->denominacion,
                         'semana' => $lote->semana,
                         'nivel' => $lote->nivel,
-                        'cantidad_preguntas' => $lote->cantidad_preguntas,
                         'version' => $lote->version,
                         'archivo_nombre' => $lote->archivo_nombre,
-                        'archivo_size' => $lote->archivo_size,
                         'estado' => $lote->estado,
-                        'observacion' => $lote->observacion,
-                        'revisor' => optional($lote->revisor)->name,
-                        'archivo_revision' => $ultimaRevision && $ultimaRevision->archivo_path
+                        'comentario' => optional($revision)->comentario,
+                        'archivo_revision' => $revision && $revision->archivo_path
                             ? [
-                                'id' => $ultimaRevision->id,
-                                'nombre' => $ultimaRevision->archivo_nombre,
+                                'id' => $revision->id,
+                                'nombre' => $revision->archivo_nombre,
                             ]
                             : null,
-                        'enviado_at' => optional($lote->enviado_at)->format('d/m/Y H:i'),
+                        'enviado_at' => optional($lote->created_at)->format('d/m/Y H:i'),
                     ];
                 });
         }
@@ -122,7 +120,6 @@ class PreguntasDemoController extends Controller
 
         try {
             DB::transaction(function () use (
-                $archivo,
                 $cuenta,
                 $cursoId,
                 $nombreOriginal,
@@ -154,15 +151,10 @@ class PreguntasDemoController extends Controller
                     'docentes_id' => $cuenta->docentes_id,
                     'semana' => $semana,
                     'nivel' => $request->input('nivel'),
-                    'cantidad_preguntas' => 2,
                     'version' => $ultimaEntrega ? $ultimaEntrega->version + 1 : 1,
                     'archivo_path' => $path,
                     'archivo_nombre' => $nombreOriginal,
-                    'archivo_mime' => $archivo->getMimeType()
-                        ?: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                    'archivo_size' => $archivo->getSize(),
                     'estado' => BancoPreguntaLote::ESTADO_EN_REVISION,
-                    'enviado_at' => now(),
                 ]);
             });
         } catch (Throwable $exception) {
@@ -193,7 +185,7 @@ class PreguntasDemoController extends Controller
         return Storage::disk('banco_preguntas')->download(
             $lote->archivo_path,
             $lote->archivo_nombre,
-            ['Content-Type' => $lote->archivo_mime]
+            ['Content-Type' => DocumentoWord::MIME]
         );
     }
 
@@ -210,7 +202,7 @@ class PreguntasDemoController extends Controller
         return Storage::disk('banco_preguntas')->download(
             $revision->archivo_path,
             $revision->archivo_nombre,
-            ['Content-Type' => $revision->archivo_mime]
+            ['Content-Type' => DocumentoWord::MIME]
         );
     }
 

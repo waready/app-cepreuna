@@ -18,14 +18,9 @@ class CreateBancoPreguntaRevisionesTable extends Migration
             $table->text('comentario')->nullable();
             $table->string('archivo_path', 1024)->nullable();
             $table->string('archivo_nombre')->nullable();
-            $table->string('archivo_mime', 150)->nullable();
-            $table->unsignedBigInteger('archivo_size')->nullable();
-            $table->timestamps();
+            $table->timestamp('created_at')->useCurrent();
 
-            $table->index(
-                ['banco_pregunta_lote_id', 'created_at'],
-                'bpr_lote_fecha_idx'
-            );
+            $table->unique('banco_pregunta_lote_id', 'bpr_lote_unique');
             $table->index(
                 ['users_id', 'accion'],
                 'bpr_usuario_accion_idx'

@@ -48,8 +48,22 @@ o de otro periodo.
 ### `banco_pregunta_lotes`
 
 Representa cada entrega Word. Guarda periodo, curso, docente, semana, nivel,
-cantidad declarada de preguntas, version, metadatos del archivo, estado y datos
-de la ultima revision.
+version, ruta y nombre del archivo, estado y marcas de tiempo.
+
+Campos:
+
+- `id`
+- `periodos_id`
+- `cursos_id`
+- `docentes_id`
+- `semana`
+- `nivel`
+- `version`
+- `archivo_path`
+- `archivo_nombre`
+- `estado`
+- `created_at`
+- `updated_at`
 
 La combinacion periodo, curso, docente, semana y version es unica.
 
@@ -57,6 +71,23 @@ La combinacion periodo, curso, docente, semana y version es unica.
 
 Conserva el historial auditable de decisiones. Registra usuario, accion,
 comentario y, opcionalmente, una version Word corregida por el revisor.
+Cada version entregada admite una sola revision; un reenvio observado crea un
+nuevo lote con la siguiente version.
+
+Campos:
+
+- `id`
+- `banco_pregunta_lote_id`
+- `users_id`
+- `accion`
+- `comentario`
+- `archivo_path`
+- `archivo_nombre`
+- `created_at`
+
+No se duplican cantidad fija, MIME, tamano, comentario, revisor ni fechas de
+revision en la entrega. La aplicacion obtiene esos datos del archivo o de la
+ultima revision cuando son necesarios.
 
 Los documentos no se exponen mediante `public/storage`. Se guardan en:
 

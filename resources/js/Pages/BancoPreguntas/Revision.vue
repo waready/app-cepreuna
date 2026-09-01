@@ -75,7 +75,7 @@
                                 <i class="pi pi-file-word"></i>
                                 <span>
                                     <strong>{{ slotProps.data.archivo_nombre }}</strong>
-                                    <small>{{ formatoBytes(slotProps.data.archivo_size) }} · {{ slotProps.data.enviado_at }}</small>
+                                    <small>Enviado {{ slotProps.data.enviado_at }}</small>
                                 </span>
                                 <i class="pi pi-download"></i>
                             </a>
@@ -88,7 +88,7 @@
                                     :severity="estadoSeverity(slotProps.data.estado)"
                                     :value="estadoLabel(slotProps.data.estado)"
                                 />
-                                <small v-if="slotProps.data.observacion">{{ slotProps.data.observacion }}</small>
+                                <small v-if="slotProps.data.comentario">{{ slotProps.data.comentario }}</small>
                             </div>
                         </template>
                     </Column>
@@ -319,12 +319,6 @@ export default {
             observado: "warning",
             rechazado: "danger",
         }[estado] || "info");
-        const formatoBytes = (bytes) => {
-            if (!bytes) return "0 KB";
-            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-            return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-        };
-
         return {
             abrirDecision,
             archivoKey,
@@ -342,7 +336,6 @@ export default {
             filtroEstado,
             filtros,
             form,
-            formatoBytes,
             guardarDecision,
             nivelLabel,
             pendientes,

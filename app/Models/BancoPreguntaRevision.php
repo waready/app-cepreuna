@@ -11,6 +11,8 @@ class BancoPreguntaRevision extends Model implements Auditable
 
     protected $table = 'banco_pregunta_revisiones';
 
+    public const UPDATED_AT = null;
+
     public const ACCION_APROBAR = 'aprobar';
     public const ACCION_OBSERVAR = 'observar';
     public const ACCION_RECHAZAR = 'rechazar';
@@ -22,12 +24,6 @@ class BancoPreguntaRevision extends Model implements Auditable
         'comentario',
         'archivo_path',
         'archivo_nombre',
-        'archivo_mime',
-        'archivo_size',
-    ];
-
-    protected $casts = [
-        'archivo_size' => 'integer',
     ];
 
     public function lote()

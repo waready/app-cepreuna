@@ -6,6 +6,8 @@ use ZipArchive;
 
 class DocumentoWord
 {
+    public const MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
     public static function esDocxValido(string $path): bool
     {
         if (!is_file($path)) {

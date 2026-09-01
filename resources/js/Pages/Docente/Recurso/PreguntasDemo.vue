@@ -270,7 +270,7 @@
                                     :severity="estadoSeverity(slotProps.data.estado)"
                                     :value="estadoLabel(slotProps.data.estado)"
                                 />
-                                <small v-if="slotProps.data.observacion">{{ slotProps.data.observacion }}</small>
+                                <small v-if="slotProps.data.comentario">{{ slotProps.data.comentario }}</small>
                                 <a
                                     v-if="slotProps.data.archivo_revision"
                                     :href="route(
@@ -317,7 +317,6 @@ export default {
             curso_id: null,
             semana: null,
             nivel: null,
-            cantidad_preguntas: 2,
             confirmacion_dos_preguntas: false,
             archivo: null,
         });
@@ -373,7 +372,6 @@ export default {
         };
         const nivelLabel = (nivel) => niveles.find((item) => item.value === nivel)?.label || nivel;
         const estadoLabel = (estado) => ({
-            borrador: "Borrador",
             en_revision: "En revision",
             aprobado: "Aprobado",
             observado: "Observado",

@@ -27,7 +27,6 @@ class StoreBancoPreguntaLoteRequest extends FormRequest
                     BancoPreguntaLote::NIVEL_AVANZADO,
                 ]),
             ],
-            'cantidad_preguntas' => ['required', 'integer', 'in:2'],
             'confirmacion_dos_preguntas' => ['accepted'],
             'archivo' => [
                 'required',
@@ -64,7 +63,6 @@ class StoreBancoPreguntaLoteRequest extends FormRequest
             'semana.between' => 'La semana debe estar entre 1 y 30.',
             'nivel.required' => 'Selecciona el nivel de las preguntas.',
             'nivel.in' => 'El nivel seleccionado no es valido.',
-            'cantidad_preguntas.in' => 'Cada entrega debe contener exactamente 2 preguntas.',
             'confirmacion_dos_preguntas.accepted' => 'Confirma que el Word contiene exactamente 2 preguntas.',
             'archivo.required' => 'Adjunta el archivo Word con las preguntas.',
             'archivo.file' => 'No se pudo leer el archivo adjunto.',

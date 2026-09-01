@@ -9,7 +9,6 @@ class BancoPreguntaLote extends Model implements Auditable
 {
     use \OwenIt\Auditing\Auditable;
 
-    public const ESTADO_BORRADOR = 'borrador';
     public const ESTADO_EN_REVISION = 'en_revision';
     public const ESTADO_APROBADO = 'aprobado';
     public const ESTADO_OBSERVADO = 'observado';
@@ -25,26 +24,15 @@ class BancoPreguntaLote extends Model implements Auditable
         'docentes_id',
         'semana',
         'nivel',
-        'cantidad_preguntas',
         'version',
         'archivo_path',
         'archivo_nombre',
-        'archivo_mime',
-        'archivo_size',
         'estado',
-        'observacion',
-        'enviado_at',
-        'revisado_at',
-        'revisado_por',
     ];
 
     protected $casts = [
         'semana' => 'integer',
-        'cantidad_preguntas' => 'integer',
         'version' => 'integer',
-        'archivo_size' => 'integer',
-        'enviado_at' => 'datetime',
-        'revisado_at' => 'datetime',
     ];
 
     public function periodo()
@@ -62,15 +50,8 @@ class BancoPreguntaLote extends Model implements Auditable
         return $this->belongsTo(Docente::class, 'docentes_id');
     }
 
-    public function revisor()
+    public function revision()
     {
-        return $this->belongsTo(User::class, 'revisado_por');
-    }
-
-    public function revisiones()
-    {
-        return $this->hasMany(BancoPreguntaRevision::class, 'banco_pregunta_lote_id')
-            ->orderBy('created_at')
-            ->orderBy('id');
+        return $this->hasOne(BancoPreguntaRevision::class, 'banco_pregunta_lote_id');
     }
 }

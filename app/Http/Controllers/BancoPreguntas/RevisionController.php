@@ -7,6 +7,7 @@ use App\Http\Requests\ReviewBancoPreguntaLoteRequest;
 use App\Models\BancoPreguntaLote;
 use App\Models\BancoPreguntaRevision;
 use App\Models\Periodo;
+use App\Support\DocumentoWord;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -32,16 +33,16 @@ class RevisionController extends Controller
                 ->with([
                     'curso:id,denominacion',
                     'docente:id,nombres,paterno,materno',
-                    'revisor:id,name',
+                    'revision.usuario:id,name',
                 ])
-                ->withCount('revisiones')
                 ->where('periodos_id', $periodo->id)
                 ->orderByRaw("CASE WHEN estado = 'en_revision' THEN 0 ELSE 1 END")
-                ->orderByDesc('enviado_at')
+                ->orderByDesc('created_at')
                 ->limit(300)
                 ->get()
                 ->map(function (BancoPreguntaLote $lote) {
                     $docente = $lote->docente;
+                    $revision = $lote->revision;
 
                     return [
                         'id' => $lote->id,
@@ -51,16 +52,14 @@ class RevisionController extends Controller
                         'curso' => optional($lote->curso)->denominacion,
                         'semana' => $lote->semana,
                         'nivel' => $lote->nivel,
-                        'cantidad_preguntas' => $lote->cantidad_preguntas,
                         'version' => $lote->version,
                         'archivo_nombre' => $lote->archivo_nombre,
-                        'archivo_size' => $lote->archivo_size,
                         'estado' => $lote->estado,
-                        'observacion' => $lote->observacion,
-                        'revisor' => optional($lote->revisor)->name,
-                        'revisiones_count' => $lote->revisiones_count,
-                        'enviado_at' => optional($lote->enviado_at)->format('d/m/Y H:i'),
-                        'revisado_at' => optional($lote->revisado_at)->format('d/m/Y H:i'),
+                        'comentario' => optional($revision)->comentario,
+                        'revisor' => $revision
+                            ? optional($revision->usuario)->name
+                            : null,
+                        'enviado_at' => optional($lote->created_at)->format('d/m/Y H:i'),
                     ];
                 });
         }
@@ -114,7 +113,6 @@ class RevisionController extends Controller
         try {
             DB::transaction(function () use (
                 $accion,
-                $archivo,
                 $archivoNombre,
                 $archivoPath,
                 $estados,
@@ -138,15 +136,10 @@ class RevisionController extends Controller
                     'comentario' => $request->input('comentario'),
                     'archivo_path' => $archivoPath,
                     'archivo_nombre' => $archivoNombre,
-                    'archivo_mime' => $archivo ? $archivo->getMimeType() : null,
-                    'archivo_size' => $archivo ? $archivo->getSize() : null,
                 ]);
 
                 $entrega->update([
                     'estado' => $estados[$accion],
-                    'observacion' => $request->input('comentario'),
-                    'revisado_at' => now(),
-                    'revisado_por' => Auth::id(),
                 ]);
             });
         } catch (Throwable $exception) {
@@ -169,7 +162,7 @@ class RevisionController extends Controller
         return Storage::disk('banco_preguntas')->download(
             $lote->archivo_path,
             $lote->archivo_nombre,
-            ['Content-Type' => $lote->archivo_mime]
+            ['Content-Type' => DocumentoWord::MIME]
         );
     }
 
@@ -184,7 +177,7 @@ class RevisionController extends Controller
         return Storage::disk('banco_preguntas')->download(
             $revision->archivo_path,
             $revision->archivo_nombre,
-            ['Content-Type' => $revision->archivo_mime]
+            ['Content-Type' => DocumentoWord::MIME]
         );
     }
 
