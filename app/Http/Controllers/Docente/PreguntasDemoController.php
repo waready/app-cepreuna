@@ -102,6 +102,18 @@ class PreguntasDemoController extends Controller
             ]);
         }
 
+        $nivelAsignado = DB::table('banco_pregunta_asignaciones')
+            ->where('periodos_id', $periodo->id)
+            ->where('cursos_id', $cursoId)
+            ->where('docentes_id', $cuenta->docentes_id)
+            ->value('nivel');
+
+        if (!is_string($nivelAsignado)) {
+            throw ValidationException::withMessages([
+                'curso_id' => 'Este curso aun no tiene un nivel sorteado para ti.',
+            ]);
+        }
+
         $response = [];
 
         try {
@@ -110,7 +122,6 @@ class PreguntasDemoController extends Controller
                 'cursos_id' => $cursoId,
                 'docentes_id' => (int) $cuenta->docentes_id,
                 'semana' => $semana,
-                'nivel' => $request->input('nivel'),
             ], $request->file('archivo'));
         } catch (BancoPreguntasApiException $exception) {
             $this->throwUploadException($exception);
@@ -242,7 +253,8 @@ class PreguntasDemoController extends Controller
     private function persistenciaDisponible(): bool
     {
         return Schema::hasTable('banco_pregunta_lotes')
-            && Schema::hasTable('banco_pregunta_revisiones');
+            && Schema::hasTable('banco_pregunta_revisiones')
+            && Schema::hasTable('banco_pregunta_asignaciones');
     }
 
     private function cursosAsignados($docenteId, $periodoId)
@@ -251,10 +263,16 @@ class PreguntasDemoController extends Controller
             ->select(
                 'ca.cursos_id as curso_id',
                 'c.denominacion as curso',
+                'bpa.nivel',
                 'g.denominacion as grupo',
                 's.id as sede_id',
                 's.denominacion as sede'
             )
+            ->join('banco_pregunta_asignaciones as bpa', function ($join) {
+                $join->on('bpa.periodos_id', '=', 'ca.periodos_id')
+                    ->on('bpa.cursos_id', '=', 'ca.cursos_id')
+                    ->on('bpa.docentes_id', '=', 'ca.docentes_id');
+            })
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
@@ -286,6 +304,7 @@ class PreguntasDemoController extends Controller
                 return [
                     'id' => (int) $primeraCarga->curso_id,
                     'curso' => $primeraCarga->curso,
+                    'nivel' => $primeraCarga->nivel,
                     'grupos' => $grupos->all(),
                     'modalidades' => $modalidades->all(),
                     'label' => sprintf(

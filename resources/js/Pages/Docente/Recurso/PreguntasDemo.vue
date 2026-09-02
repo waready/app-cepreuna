@@ -38,7 +38,7 @@
             <div v-if="!cursos.length" class="empty-state">
                 <i class="pi pi-book"></i>
                 <h2>No hay cursos disponibles</h2>
-                <p>No tienes cargas activas en el periodo actual.</p>
+                <p>Aun no tienes cursos con un nivel sorteado en el periodo actual.</p>
             </div>
 
             <div v-else class="workflow-grid">
@@ -145,18 +145,18 @@
                             </div>
 
                             <div class="field">
-                                <label for="entrega-nivel">Nivel</label>
+                                <label for="entrega-nivel">Nivel sorteado</label>
                                 <Dropdown
                                     id="entrega-nivel"
                                     v-model="form.nivel"
-                                    :options="niveles"
+                                    :options="nivelAsignadoOptions"
                                     optionLabel="label"
                                     optionValue="value"
-                                    placeholder="Selecciona el nivel"
+                                    :placeholder="cursoSeleccionado ? 'Nivel asignado' : 'Selecciona primero un curso'"
                                     class="w-full"
-                                    :class="{ 'p-invalid': form.errors.nivel }"
+                                    disabled
                                 />
-                                <small v-if="form.errors.nivel" class="p-error">{{ form.errors.nivel }}</small>
+                                <small class="field-help">Asignado automaticamente por el sorteo del coordinador.</small>
                             </div>
                         </div>
 
@@ -340,7 +340,7 @@
 
 <script>
 import AppLayout from "@/Layouts/AppLayout";
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { useForm } from "@inertiajs/inertia-vue3";
 import { useToast } from "primevue/usetoast";
 
@@ -373,6 +373,20 @@ export default {
 
         const cursoSeleccionado = computed(() =>
             props.cursos.find((curso) => curso.id === form.curso_id)
+        );
+        const nivelAsignadoOptions = computed(() => {
+            if (!cursoSeleccionado.value?.nivel) return [];
+
+            return niveles.filter(
+                (nivel) => nivel.value === cursoSeleccionado.value.nivel
+            );
+        });
+
+        watch(
+            () => form.curso_id,
+            () => {
+                form.nivel = cursoSeleccionado.value?.nivel || null;
+            }
         );
         const puedeEnviar = computed(
             () =>
@@ -484,6 +498,7 @@ export default {
             form,
             formatoBytes,
             nivelLabel,
+            nivelAsignadoOptions,
             niveles,
             puedeEnviar,
             seleccionarArchivo,
@@ -765,6 +780,17 @@ export default {
 .field :deep(.p-inputnumber),
 .field :deep(.p-inputnumber-input) {
     width: 100%;
+}
+
+.field-help {
+    color: var(--muted);
+    font-size: 0.75rem;
+}
+
+.field :deep(.p-dropdown.p-disabled) {
+    border-color: #f2b49b;
+    background: #fff8f4;
+    opacity: 1;
 }
 
 .course-context {
