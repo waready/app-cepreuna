@@ -1,6 +1,6 @@
 "use strict";
 
-const CACHE_NAME = "cepreuna-pwa-v3";
+const CACHE_NAME = "cepreuna-pwa-v4";
 const OFFLINE_URL = "/offline";
 const PRECACHE_URLS = [
     OFFLINE_URL,

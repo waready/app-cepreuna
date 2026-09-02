@@ -33,8 +33,8 @@
             return;
         }
 
-        const pwaVersion = "2026.08.22.1";
-        const currentCache = "cepreuna-pwa-v3";
+        const pwaVersion = "2026.09.02.1";
+        const currentCache = "cepreuna-pwa-v4";
         const cacheVersionKey = "cepreuna-pwa-cache-version";
         const reloadKey = `cepreuna-pwa-reloaded-${pwaVersion}`;
         const hadController = Boolean(navigator.serviceWorker.controller);
