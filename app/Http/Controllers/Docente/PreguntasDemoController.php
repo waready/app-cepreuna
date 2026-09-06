@@ -67,8 +67,18 @@ class PreguntasDemoController extends Controller
                 });
         }
 
+        try {
+            $cursos = $this->bancoPreguntasApi->cursos(
+                $cuenta->docentes_id,
+                $periodo->id
+            );
+        } catch (BancoPreguntasApiException $exception) {
+            report($exception);
+            $cursos = $this->cursosAsignados($cuenta->docentes_id, $periodo->id);
+        }
+
         return Inertia::render('Docente/Recurso/PreguntasDemo', [
-            'cursos' => $this->cursosAsignados($cuenta->docentes_id, $periodo->id),
+            'cursos' => $cursos,
             'entregas' => $entregas,
             'persistenciaDisponible' => $persistenciaDisponible,
             'periodo' => [
@@ -265,8 +275,8 @@ class PreguntasDemoController extends Controller
                 'c.denominacion as curso',
                 'bpa.nivel',
                 'g.denominacion as grupo',
-                's.id as sede_id',
-                's.denominacion as sede'
+                DB::raw('COALESCE(sede_directa.id, sede_aula.id) as sede_id'),
+                DB::raw('COALESCE(sede_directa.denominacion, sede_aula.denominacion) as sede')
             )
             ->join('banco_pregunta_asignaciones as bpa', function ($join) {
                 $join->on('bpa.periodos_id', '=', 'ca.periodos_id')
@@ -276,9 +286,10 @@ class PreguntasDemoController extends Controller
             ->join('cursos as c', 'c.id', 'ca.cursos_id')
             ->join('grupo_aulas as ga', 'ga.id', 'ca.grupo_aulas_id')
             ->join('grupos as g', 'g.id', 'ga.grupos_id')
-            ->join('aulas as au', 'au.id', 'ga.aulas_id')
-            ->join('locales as l', 'l.id', 'au.locales_id')
-            ->join('sedes as s', 's.id', 'l.sedes_id')
+            ->leftJoin('sedes as sede_directa', 'sede_directa.id', 'ga.sedes_id')
+            ->leftJoin('aulas as au', 'au.id', 'ga.aulas_id')
+            ->leftJoin('locales as l', 'l.id', 'au.locales_id')
+            ->leftJoin('sedes as sede_aula', 'sede_aula.id', 'l.sedes_id')
             ->where('ca.docentes_id', $docenteId)
             ->where('ca.periodos_id', $periodoId)
             ->where('ca.estado', '1')

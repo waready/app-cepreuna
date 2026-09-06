@@ -11,6 +11,28 @@ use Illuminate\Support\Facades\Http;
 
 class BancoPreguntasApi
 {
+    public function cursos($docenteId, $periodoId)
+    {
+        try {
+            $response = $this->client()->get($this->url('/cursos'), [
+                'docentes_id' => (int) $docenteId,
+                'periodos_id' => (int) $periodoId,
+            ]);
+        } catch (ConnectionException $exception) {
+            throw new BancoPreguntasApiException(
+                'El servicio central de documentos no esta disponible.',
+                503
+            );
+        }
+
+        $this->ensureSuccessful($response);
+        $payload = $response->json();
+
+        return is_array($payload) && isset($payload['data']) && is_array($payload['data'])
+            ? $payload['data']
+            : [];
+    }
+
     public function crearEntrega(array $payload, UploadedFile $archivo)
     {
         $path = $archivo->getRealPath();
