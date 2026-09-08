@@ -138,9 +138,9 @@
                                         <td>{{ index + 1 }}.-</td>
                                         <td>{{ capitalize(lista.estudiante.paterno) }} {{ capitalize(lista.estudiante.materno) }} {{ capitalize(lista.estudiante.nombres) }}</td>
                                         <td>
-                                            <span style="font-size: 12px" class="mr-2 mb-1" :class="lista.estado == '1' ? 'instock' : 'lowstock'">{{
-                                                lista.estado == "1" ? "Presente" : "Tarde"
-                                            }}</span>
+                                            <span style="font-size: 12px" class="mr-2 mb-1" :class="attendanceStatus(lista.estado).class">
+                                                {{ attendanceStatus(lista.estado).label }}
+                                            </span>
                                         </td>
                                     </tr>
                                 </tbody>
@@ -562,6 +562,16 @@ export default {
             value = value.toString();
             return value.charAt(0).toUpperCase() + value.slice(1);
         };
+        const attendanceStatus = (value) => {
+            return (
+                {
+                    1: { label: "Presente", class: "instock" },
+                    2: { label: "Tarde", class: "lowstock" },
+                    3: { label: "Falta", class: "outofstock" },
+                    4: { label: "Permiso", class: "permission-status" },
+                }[value] || { label: "Sin registro", class: "" }
+            );
+        };
 
         return {
             title,
@@ -611,6 +621,7 @@ export default {
             dni,
             listaActual,
             capitalize,
+            attendanceStatus,
             cerrarAsistencia,
             baseUrl,
         };

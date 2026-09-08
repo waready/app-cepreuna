@@ -13,6 +13,13 @@ use Inertia\Inertia;
 
 class AsistenciaController extends Controller
 {
+    private const ESTADOS = [
+        '1' => ['titulo' => 'Presente', 'clase' => 'bg-success-asistencia'],
+        '2' => ['titulo' => 'Tarde', 'clase' => 'bg-warning-asistencia'],
+        '3' => ['titulo' => 'Falta', 'clase' => 'bg-danger-asistencia'],
+        '4' => ['titulo' => 'Permiso', 'clase' => 'bg-info-asistencia'],
+    ];
+
     public function __construct()
     {
         $this->middleware('auth:estudiante');
@@ -59,11 +66,22 @@ class AsistenciaController extends Controller
         }
 
         foreach ($asistenciasEstudianteD as $k => $val) {
+            $estado = self::ESTADOS[(string) $val->estado] ?? [
+                'titulo' => 'Asistencia',
+                'clase' => 'bg-secondary-asistencia',
+            ];
+            $descripcion = trim((string) ($val->observacion ?? ''));
+
             $obj = new \stdClass;
             $obj->start = $val->fecha . ' ' . $horasAsistencia->inicio;
             $obj->end = $val->fecha . ' ' . $horasAsistencia->fin;
-            $obj->title = 'Asistencia';
-            $obj->class = $val->estado == '1' ? 'bg-success-asistencia' : ($val->estado == '2' ? 'bg-warning-asistencia' : 'bg-danger-asistencia');
+            $obj->title = $estado['titulo'];
+            $obj->class = $estado['clase'];
+            $obj->content = (string) $val->estado === '4' && $descripcion !== '' ? e($descripcion) : '';
+            $obj->estado = (string) $val->estado;
+            $obj->estado_texto = $estado['titulo'];
+            $obj->descripcion = $descripcion !== '' ? $descripcion : null;
+            $obj->fecha = $val->fecha;
 
             $asistencias[] = $obj;
         }

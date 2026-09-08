@@ -192,7 +192,9 @@ class EstudianteController extends Controller
                     DB::raw("CASE
                                 WHEN aed.estado = 1 THEN 'PRESENTE'
                                 WHEN aed.estado = 2 THEN 'TARDE'
-                                ELSE 'FALTA'
+                                WHEN aed.estado = 3 THEN 'FALTA'
+                                WHEN aed.estado = 4 THEN 'PERMISO'
+                                ELSE 'SIN REGISTRO'
                             END  as estado")
                 )
                     ->join("asistencia_estudiante_detalles as aed", "aed.estudiantes_id", "estudiantes.id")

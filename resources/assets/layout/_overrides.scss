@@ -183,6 +183,12 @@ body {
     color: #4baf50;
 }
 
+.permission-status {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1976d2;
+}
+
 .bg-primary .p-dialog-header {
     @include linear-gradient-left($menuitemDarkActiveBgColor,$menuDarkBgColorFirst);
     color: white;
@@ -264,6 +270,20 @@ body {
 }
 .bg-warning-asistencia {
     background-color:#fbc02d !important;
+    color:white !important;
+    padding: 2px;
+    font-size: 11px;
+    border: solid 1px white;
+}
+.bg-info-asistencia {
+    background-color:#1976d2 !important;
+    color:white !important;
+    padding: 2px;
+    font-size: 11px;
+    border: solid 1px white;
+}
+.bg-secondary-asistencia {
+    background-color:#64748b !important;
     color:white !important;
     padding: 2px;
     font-size: 11px;
