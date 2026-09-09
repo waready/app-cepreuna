@@ -41,4 +41,10 @@ return [
         'timeout' => (int) env('BANCO_PREGUNTAS_API_TIMEOUT', 30),
     ],
 
+    'pago_archivos' => [
+        'url' => env('PAGO_ARCHIVOS_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
+        'token' => env('PAGO_ARCHIVOS_API_TOKEN') ?: env('BANCO_PREGUNTAS_API_TOKEN'),
+        'timeout' => (int) env('PAGO_ARCHIVOS_API_TIMEOUT', 30),
+    ],
+
 ];

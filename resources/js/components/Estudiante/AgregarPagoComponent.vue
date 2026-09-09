@@ -186,7 +186,7 @@ export default {
             let formData = new FormData();
 
             // Pagalo.pe (checkbox)
-            formData.append("pagarEnPagalo", typeof this.fields.pagadoConPagalo !== "undefined" ? this.fields.pagadoConPagalo : "");
+            formData.append("pagarEnPagalo", this.fields.pagadoConPagalo ? "1" : "0");
 
             formData.append("secuencia", typeof this.fields.secuencia !== "undefined" ? this.fields.secuencia : "");
             formData.append("monto", typeof this.fields.monto !== "undefined" ? this.fields.monto : "");
@@ -197,7 +197,7 @@ export default {
             formData.append("file", this.file !== null ? this.file.file : "");
 
             axios
-                .post(this.url + "/api/pagos/validar-pago-cuota/" + this.$page.props.user.id, formData)
+                .post(route("estudiantes.validar-pago"), formData)
                 .then((response) => {
                     if (response.data.status) {
                         this.result.pago.push(response.data);

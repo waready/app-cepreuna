@@ -13,25 +13,28 @@ use App\Models\Periodo;
 use App\Models\Tarifa;
 use App\Models\TarifaEstudiante;
 use App\Models\Estudiante;
+use App\Services\PagoArchivosApi;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class PagoController extends Controller
 {
-    private $dateTime;
-    private $dateTimePartial;
+    private const BANCO_AGENCIA_PAGALO = '0987';
+    private const BANCO_CONCEPTO_CEPREUNA = '00000067';
+    private const BANCO_CUENTA_SIN_COMISION = '0701010736';
 
-    public function __construct()
+    private $pagoArchivos;
+
+    public function __construct(PagoArchivosApi $pagoArchivos)
     {
         // $this->middleware('auth:estudiante');
         date_default_timezone_set("America/Lima"); //Zona horaria de Peru
-        $this->dateTime = date("Y-m-d H:i:s");
-        $this->dateTimePartial = date("m-Y");
+        $this->pagoArchivos = $pagoArchivos;
     }
 
     protected function mensajeInscripcionActiva(): string
@@ -332,10 +335,292 @@ class PagoController extends Controller
 
         return $pagos;
     }
+    protected function tablaTieneColumna(string $tabla, string $columna): bool
+    {
+        static $columnas = [];
+        $clave = $tabla . '.' . $columna;
+
+        if (! array_key_exists($clave, $columnas)) {
+            $columnas[$clave] = Schema::hasColumn($tabla, $columna);
+        }
+
+        return $columnas[$clave];
+    }
+
+    protected function normalizarDocumentoBanco($documento): string
+    {
+        $documento = preg_replace('/\\D+/', '', (string) $documento);
+
+        return str_pad((string) $documento, 15, '0', STR_PAD_LEFT);
+    }
+
+    protected function normalizarSecuenciaBanco($secuencia): string
+    {
+        return (string) preg_replace('/\\D+/', '', (string) $secuencia);
+    }
+
+    protected function consultaCoincidenciaBanco($documento, $secuencia, $monto, $fecha)
+    {
+        $documentoBanco = $this->normalizarDocumentoBanco($documento);
+        $secuenciaBanco = $this->normalizarSecuenciaBanco($secuencia);
+        $secuenciaPagalo = substr($secuenciaBanco, -6);
+
+        $query = BancoPago::query()
+            ->where('num_doc', $documentoBanco)
+            ->whereDate('fch_pag', $fecha)
+            ->where('imp_pag', round((float) $monto, 2))
+            ->where('concepto', self::BANCO_CONCEPTO_CEPREUNA)
+            ->where(function ($query) use ($secuenciaBanco, $secuenciaPagalo) {
+                $query->where('secuencia', $secuenciaBanco)
+                    ->orWhere(function ($query) use ($secuenciaPagalo) {
+                        $query->where('cod_age', self::BANCO_AGENCIA_PAGALO)
+                            ->whereRaw('SUBSTRING(secuencia, 2, 6) = ?', [$secuenciaPagalo]);
+                    });
+            });
+
+        return $query;
+    }
+
+    protected function buscarPagoBancoDisponible($documento, $secuencia, $monto, $fecha): ?BancoPago
+    {
+        $secuenciaBanco = $this->normalizarSecuenciaBanco($secuencia);
+        $query = $this->consultaCoincidenciaBanco($documento, $secuencia, $monto, $fecha);
+
+        if ($this->tablaTieneColumna('banco_pagos', 'fecha_usado')) {
+            $query->whereNull('fecha_usado');
+        }
+
+        if ($this->tablaTieneColumna('banco_pagos', 'estado')) {
+            $query->where(function ($query) {
+                $query->whereNull('estado')->orWhere('estado', '<>', '2');
+            });
+        }
+
+        return $query
+            ->orderByRaw('(secuencia = ?) DESC', [$secuenciaBanco])
+            ->orderBy('fch_pag')
+            ->orderBy('id')
+            ->first();
+    }
+
+    protected function bancoPagoDisponible(BancoPago $bancoPago): bool
+    {
+        if ($this->tablaTieneColumna('banco_pagos', 'fecha_usado') && ! empty($bancoPago->fecha_usado)) {
+            return false;
+        }
+
+        return ! $this->tablaTieneColumna('banco_pagos', 'estado')
+            || (string) $bancoPago->estado !== '2';
+    }
+
+    protected function buscarPagoAsociadoBanco(BancoPago $bancoPago, $documento, bool $bloquear = false): ?Pago
+    {
+        if ($this->tablaTieneColumna('pagos', 'banco_pagos_id')) {
+            $query = Pago::where('banco_pagos_id', $bancoPago->id);
+
+            if ($bloquear) {
+                $query->lockForUpdate();
+            }
+
+            $pago = $query->first();
+            if ($pago) {
+                return $pago;
+            }
+        }
+
+        $secuencia = $this->normalizarSecuenciaBanco($bancoPago->secuencia);
+        $secuenciaCorta = substr($secuencia, -6);
+        $documentoSinRelleno = preg_replace('/\\D+/', '', (string) $documento);
+        $query = Pago::query()
+            ->whereIn('nro_documento', [
+                $documentoSinRelleno,
+                $this->normalizarDocumentoBanco($documento),
+            ])
+            ->whereDate('fecha', $bancoPago->fch_pag)
+            ->where('monto', round((float) $bancoPago->imp_pag, 2))
+            ->where(function ($query) use ($secuencia, $secuenciaCorta) {
+                $query->where('secuencia', $secuencia)
+                    ->orWhere('secuencia', $secuenciaCorta);
+            });
+
+        if ($bloquear) {
+            $query->lockForUpdate();
+        }
+
+        return $query->first();
+    }
+
+    protected function pagoPerteneceAlEstudiante(Pago $pago, int $estudianteId, int $periodoId, $documento): bool
+    {
+        if (
+            $this->tablaTieneColumna('pagos', 'estudiantes_id')
+            && $pago->estudiantes_id !== null
+            && (int) $pago->estudiantes_id !== $estudianteId
+        ) {
+            return false;
+        }
+
+        if (
+            $this->tablaTieneColumna('pagos', 'periodos_id')
+            && $pago->periodos_id !== null
+            && (int) $pago->periodos_id !== $periodoId
+        ) {
+            return false;
+        }
+
+        return $this->normalizarDocumentoBanco($pago->nro_documento)
+            === $this->normalizarDocumentoBanco($documento);
+    }
+
+    protected function respuestaPagoValidado(Pago $pago, string $message = 'Pago validado correctamente.'): array
+    {
+        return [
+            'message' => $message,
+            'status' => true,
+            'token' => $pago->token,
+            'monto' => $pago->monto,
+            'secuencia' => $pago->secuencia,
+            'fecha' => $pago->fecha,
+        ];
+    }
+
+    protected function eliminarVoucherTemporal(?string $voucher): void
+    {
+        if (! $voucher) {
+            return;
+        }
+
+        try {
+            $this->pagoArchivos->eliminarVoucher($voucher);
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
+
+    protected function buscarBancoDelPago(Pago $pago, $documento, bool $bloquear = false): ?BancoPago
+    {
+        if ($this->tablaTieneColumna('pagos', 'banco_pagos_id') && $pago->banco_pagos_id) {
+            $query = BancoPago::query()
+                ->whereKey($pago->banco_pagos_id)
+                ->where('num_doc', $this->normalizarDocumentoBanco($documento));
+
+            if ($bloquear) {
+                $query->lockForUpdate();
+            }
+
+            return $query->first();
+        }
+
+        $secuencia = $this->normalizarSecuenciaBanco($pago->secuencia);
+        $secuenciaCorta = substr($secuencia, -6);
+        $query = BancoPago::query()
+            ->where('num_doc', $this->normalizarDocumentoBanco($documento))
+            ->whereDate('fch_pag', $pago->fecha)
+            ->where('imp_pag', round((float) $pago->monto, 2))
+            ->where('concepto', self::BANCO_CONCEPTO_CEPREUNA)
+            ->where(function ($query) use ($secuencia, $secuenciaCorta) {
+                $query->where('secuencia', $secuencia)
+                    ->orWhere(function ($query) use ($secuenciaCorta) {
+                        $query->where('cod_age', self::BANCO_AGENCIA_PAGALO)
+                            ->whereRaw('SUBSTRING(secuencia, 2, 6) = ?', [$secuenciaCorta]);
+                    });
+            })
+            ->orderBy('fch_pag')
+            ->orderBy('id');
+
+        if ($bloquear) {
+            $query->lockForUpdate();
+        }
+
+        return $query->first();
+    }
+
+    protected function montoBancoAplicable(BancoPago $bancoPago): float
+    {
+        $comision = (string) $bancoPago->cuenta === self::BANCO_CUENTA_SIN_COMISION ? 0 : 1;
+
+        return max(0, round((float) $bancoPago->imp_pag - $comision, 2));
+    }
+
+    protected function distribuirPagoEnTarifas(int $estudianteId, int $periodoId, float $monto, $fechaPago): void
+    {
+        $tarifas = TarifaEstudiante::where([
+            ['estudiantes_id', $estudianteId],
+            ['periodos_id', $periodoId],
+        ])
+            ->whereColumn('monto', '!=', 'pagado')
+            ->orderBy('nro_cuota')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        $restante = $monto;
+
+        foreach ($tarifas as $tarifa) {
+            if ($restante <= 0) {
+                break;
+            }
+
+            $deuda = max(0, round((float) $tarifa->monto - (float) $tarifa->pagado, 2));
+            if ($deuda <= 0) {
+                continue;
+            }
+
+            $cronograma = CronogramaPago::where([
+                ['periodos_id', $periodoId],
+                ['nro_cuota', $tarifa->nro_cuota],
+            ])->first();
+            $fueraDeFecha = $cronograma
+                && $cronograma->fin
+                && strtotime((string) $fechaPago) > strtotime((string) $cronograma->fin);
+
+            if ($fueraDeFecha) {
+                $moraAnterior = (float) $tarifa->mora;
+
+                if ($restante >= $deuda + 30) {
+                    $tarifa->mora = 30;
+                    $tarifa->pagado = $tarifa->monto;
+                    $restante = $restante - ($deuda + 30) + $moraAnterior;
+                } else {
+                    if ($restante >= 30) {
+                        $tarifa->mora = 30;
+                        $tarifa->pagado = (float) $tarifa->pagado + ($restante - 30) + $moraAnterior;
+                    } else {
+                        $tarifa->pagado = (float) $tarifa->pagado + $restante;
+                    }
+
+                    $restante = 0;
+                }
+            } elseif ($restante >= $deuda) {
+                $tarifa->pagado = $tarifa->monto;
+                $restante -= $deuda;
+            } else {
+                $tarifa->pagado = (float) $tarifa->pagado + $restante;
+                $restante = 0;
+            }
+
+            $tarifa->save();
+        }
+
+        if ($restante <= 0 || $tarifas->isEmpty()) {
+            return;
+        }
+
+        $ultimaTarifa = TarifaEstudiante::where([
+            ['estudiantes_id', $estudianteId],
+            ['periodos_id', $periodoId],
+            ['nro_cuota', 4],
+        ])->orderBy('id')->lockForUpdate()->first();
+
+        if ($ultimaTarifa) {
+            $ultimaTarifa->pagado = (float) $ultimaTarifa->pagado + $restante;
+            $ultimaTarifa->save();
+        }
+    }
+
     public function validarPagoCuota(Request $request)
     {
-
-        $idEstudiante = Auth::user()->id;
+        $idEstudiante = (int) Auth::id();
         $inscripcion = Inscripciones::query()
             ->delEstudiante($idEstudiante)
             ->delPeriodoActual()
@@ -346,168 +631,172 @@ class PagoController extends Controller
             return response()->json($this->respuestaOperacionFallida($this->mensajeInscripcionActiva()));
         }
 
-        $rules = $request->validate([
-            'secuencia' => 'required',
-            'monto' => 'required',
-            // 'fecha' => 'required',
-            'fecha' => 'required|date|after:2020-12-14|date_format:Y-m-d',
-            'file' => 'required|mimes:pdf,jpg,jpeg,png|max:2000',
-        ], $messages = [
+        $request->validate([
+            'secuencia' => ['required', 'string', 'max:50'],
+            'monto' => ['required', 'numeric', 'min:0.01'],
+            'fecha' => ['required', 'date', 'after:2020-12-14', 'date_format:Y-m-d'],
+            'pagarEnPagalo' => ['nullable'],
+            'file' => ['required', 'mimes:pdf,jpg,jpeg,png', 'max:6144'],
+        ], [
             'required' => '* El campo es obligatorio.',
+            'monto.numeric' => '* Ingrese un monto valido.',
+            'monto.min' => '* Ingrese un monto mayor a cero.',
             'fecha.after' => '* Solo se admiten pagos desde el 15/12/2020.',
-            'file.required' => '* El voucher es obligatorio',
-            'file.mimes' => '* Solo se admiten formatos pdf,jpg,jpeg,png.',
-            'file.max' => '* El peso maximo del archivo debe ser menor a 6 MB.'
+            'file.required' => '* El voucher es obligatorio.',
+            'file.mimes' => '* Solo se admiten formatos pdf, jpg, jpeg o png.',
+            'file.max' => '* El peso maximo del archivo debe ser menor a 6 MB.',
         ]);
-        // dd($request->all());
 
-        $descuento = '0';
-        switch ($inscripcion->tipo_estudiante) {
-            case '1':
-                $descuento = '1';
-                break;
-            case '2':
-                $descuento = '2';
-                break;
-            case '3':
-                $descuento = '2';
-                break;
-            case '4':
-                $descuento = '2';
-                break;
-            case '6':
-                $descuento = '2';
-                break;
-            default:
-                $descuento = '0';
-                break;
-        }
-        // dd($request->file('file')->getClientOriginalExtension());
-        $token = Str::random(40);
-
-        // $tarifa = Tarifa::where('id',$request->tarifa)->first();
-
-        $bancoPagoValidacion = BancoPago::where([
-            ["secuencia", $request->secuencia],
-            ["imp_pag", $request->monto],
-            ["fch_pag", $request->fecha],
-            ["concepto", '00000067']
-        ])
-            ->first();
-
-        if ($bancoPagoValidacion->cuenta == '0701010736') {
-            $pago = Pago::where([
-                ["secuencia", $request->secuencia],
-                ["monto", $request->monto],
-                ["fecha", $request->fecha],
-            ])->first();
-        } else {
-            $pago = Pago::where([
-                ["secuencia", $request->secuencia],
-                ["monto", $request->monto],
-                ["fecha", $request->fecha],
-                ["nro_documento", $request->documento],
-            ])->first();
+        $estudiante = $inscripcion->estudiante()->first();
+        if (! $estudiante || ! preg_replace('/\\D+/', '', (string) $estudiante->nro_documento)) {
+            return response()->json($this->respuestaOperacionFallida(
+                'No se encontro el documento del estudiante para validar el pago.'
+            ));
         }
 
+        $documento = (string) $estudiante->nro_documento;
+        $bancoPago = $this->buscarPagoBancoDisponible(
+            $documento,
+            $request->input('secuencia'),
+            $request->input('monto'),
+            $request->input('fecha')
+        );
 
-        if (empty($pago)) {
-            if ($bancoPagoValidacion->cuenta == '0701010736') {
-                $bancoPago = BancoPago::where([
-                    ["secuencia", $request->secuencia],
-                    ["imp_pag", $request->monto],
-                    ["fch_pag", $request->fecha],
-                    ["concepto", '00000067']
-                ])
-                    ->first();
-            } else {
-                $bancoPago = BancoPago::where([
-                    ["secuencia", $request->secuencia],
-                    ["imp_pag", $request->monto],
-                    ["fch_pag", $request->fecha],
-                    ["num_doc", str_pad($request->documento, 15, '0', STR_PAD_LEFT)],
-                    ["concepto", '00000067']
-                ])
-                    ->first();
+        if (! $bancoPago) {
+            $coincidencia = $this->consultaCoincidenciaBanco(
+                $documento,
+                $request->input('secuencia'),
+                $request->input('monto'),
+                $request->input('fecha')
+            )->orderBy('id')->first();
+
+            $message = $coincidencia
+                ? 'El pago ya fue utilizado anteriormente.'
+                : 'No se encontro un pago con esos datos. Verifique la secuencia, el monto, la fecha y que el reporte del banco ya haya sido cargado.';
+
+            return response()->json($this->respuestaOperacionFallida($message));
+        }
+
+        $pagoExistente = $this->buscarPagoAsociadoBanco($bancoPago, $documento);
+        if ($pagoExistente) {
+            if (! $this->pagoPerteneceAlEstudiante(
+                $pagoExistente,
+                $idEstudiante,
+                (int) $inscripcion->periodos_id,
+                $documento
+            )) {
+                return response()->json($this->respuestaOperacionFallida(
+                    'El pago ya fue utilizado por otra inscripcion.'
+                ));
             }
 
+            if ((string) $pagoExistente->estado === '1') {
+                return response()->json($this->respuestaPagoValidado($pagoExistente, 'Pago validado.'));
+            }
 
-            if (empty($bancoPago)) {
-                $response = array(
-                    "message" => 'Datos invalidos o el concepto de pago no pertenece a  CEPREUNA, intentelo nuevamente.',
-                    "status" => false,
-                );
-            } else {
-                $voucherAdjunto = $this->save_file($request->file, $request->file('file')->getClientOriginalExtension());
+            return response()->json($this->respuestaOperacionFallida(
+                'El pago ya ha sido registrado anteriormente.'
+            ));
+        }
 
-                DB::beginTransaction();
-                try {
+        try {
+            $voucherAdjunto = $this->pagoArchivos->guardarVoucher($request->file('file'));
+        } catch (\Throwable $e) {
+            report($e);
 
-                    $nuevoPago = new Pago();
-                    $nuevoPago->monto = $request->monto;
-                    $nuevoPago->secuencia = $request->secuencia;
-                    $nuevoPago->fecha = $request->fecha;
-                    $nuevoPago->nro_documento = $request->documento;
-                    $nuevoPago->tipo_pago = $descuento;
-                    $nuevoPago->token = $token . 'b' . time();
-                    $nuevoPago->voucher = $voucherAdjunto;
-                    $nuevoPago->save();
+            return response()->json($this->respuestaOperacionFallida(
+                'No se pudo guardar el comprobante. Intentelo nuevamente en unos minutos.'
+            ));
+        }
 
-                    DB::commit();
-                    $message = 'Pago validado correctamente.';
-                    $status = true;
-                    $token = $nuevoPago->token;
-                    $monto = $nuevoPago->monto;
-                    $secuencia = $nuevoPago->secuencia;
-                    $fecha = $nuevoPago->fecha;
-                } catch (\Exception $e) {
-                    DB::rollback();
-                    $message = 'Error al validar pago, intentelo nuevamente.';
-                    $status = false;
+        try {
+            $resultado = DB::transaction(function () use (
+                $bancoPago,
+                $documento,
+                $idEstudiante,
+                $inscripcion,
+                $voucherAdjunto
+            ) {
+                $bancoBloqueado = BancoPago::whereKey($bancoPago->id)->lockForUpdate()->first();
+
+                if (! $bancoBloqueado || ! $this->bancoPagoDisponible($bancoBloqueado)) {
+                    throw new \RuntimeException('El pago acaba de ser utilizado en otra operacion.');
                 }
 
-                if ($status == true) {
-                    $response = array(
-                        "message" => $message,
-                        "status" => $status,
-                        "token" => $token,
-                        "monto" => $monto,
-                        "secuencia" => $secuencia,
-                        "fecha" => $fecha,
-                    );
-                } else {
-                    $response = array(
-                        "message" => $message,
-                        "status" => $status,
-                    );
+                $existente = $this->buscarPagoAsociadoBanco($bancoBloqueado, $documento, true);
+                if ($existente) {
+                    if (
+                        ! $this->pagoPerteneceAlEstudiante(
+                            $existente,
+                            $idEstudiante,
+                            (int) $inscripcion->periodos_id,
+                            $documento
+                        )
+                        || (string) $existente->estado !== '1'
+                    ) {
+                        throw new \RuntimeException('El pago ya fue utilizado anteriormente.');
+                    }
+
+                    return ['pago' => $existente, 'creado' => false];
                 }
-            }
-        } else {
-            if ($pago->estado == '1') {
 
-                $response = array(
-                    "message" => 'Pago validado.',
-                    "status" => true,
-                    "token" => $pago->token,
-                    "monto" => $pago->monto,
-                    "secuencia" => $pago->secuencia,
-                    "fecha" => $pago->fecha,
-                );
-            } else {
-                $response = array(
-                    "message" => 'El pago ya ha sido registrado anteriormente.',
-                    "status" => false,
-                );
+                $nuevoPago = new Pago();
+                if ($this->tablaTieneColumna('pagos', 'periodos_id')) {
+                    $nuevoPago->periodos_id = $inscripcion->periodos_id;
+                }
+                if ($this->tablaTieneColumna('pagos', 'estudiantes_id')) {
+                    $nuevoPago->estudiantes_id = $idEstudiante;
+                }
+                if ($this->tablaTieneColumna('pagos', 'concepto_pagos_id')) {
+                    $nuevoPago->concepto_pagos_id = 1;
+                }
+                if ($this->tablaTieneColumna('pagos', 'banco_pagos_id')) {
+                    $nuevoPago->banco_pagos_id = $bancoBloqueado->id;
+                }
+                if ($this->tablaTieneColumna('pagos', 'procedencia')) {
+                    $nuevoPago->procedencia = '1';
+                }
+
+                $nuevoPago->monto = round((float) $bancoBloqueado->imp_pag, 2);
+                $nuevoPago->secuencia = $bancoBloqueado->secuencia;
+                $nuevoPago->fecha = $bancoBloqueado->fch_pag;
+                $nuevoPago->nro_documento = preg_replace('/\\D+/', '', $documento);
+                $nuevoPago->tipo_pago = $this->tipoTarifa($inscripcion);
+                $nuevoPago->estado = '1';
+                $nuevoPago->token = Str::random(40) . 'b' . time();
+                $nuevoPago->voucher = $voucherAdjunto;
+                $nuevoPago->save();
+
+                return ['pago' => $nuevoPago, 'creado' => true];
+            });
+
+            if (! $resultado['creado']) {
+                $this->eliminarVoucherTemporal($voucherAdjunto);
             }
+
+            return response()->json($this->respuestaPagoValidado($resultado['pago']));
+        } catch (\RuntimeException $e) {
+            $this->eliminarVoucherTemporal($voucherAdjunto);
+
+            return response()->json($this->respuestaOperacionFallida($e->getMessage()));
+        } catch (\Throwable $e) {
+            $this->eliminarVoucherTemporal($voucherAdjunto);
+            report($e);
+
+            return response()->json($this->respuestaOperacionFallida(
+                'Error al validar el pago. Intentelo nuevamente.'
+            ));
         }
-
-
-        return response()->json($response);
     }
+
     public function registrarPagoCuota(Request $request)
     {
-        // dd($request->all());
-        $idEstudiante = Auth::user()->id;
+        $request->validate([
+            'tokens' => ['required', 'array', 'min:1'],
+            'tokens.*' => ['required', 'string', 'max:100'],
+        ]);
+
+        $idEstudiante = (int) Auth::id();
         $inscripcion = Inscripciones::query()
             ->delEstudiante($idEstudiante)
             ->delPeriodoActual()
@@ -518,458 +807,113 @@ class PagoController extends Controller
             return response()->json($this->respuestaOperacionFallida($this->mensajeInscripcionActiva()));
         }
 
-        $estudiante = $inscripcion->estudiante()->with('colegio')->first();
-
-        $tokens = $request->tokens;
-
-        $cont = 0;
-        $validarPago = 0;
-        $comisionBanco = 0;
-
-        if (isset($tokens)) {
-            while ($cont < count($tokens)) {
-
-                $validarPago = Pago::where('token', $tokens[$cont])->first();
-                $comisionBanco = $comisionBanco + 1;
-
-                if (empty($validarPago)) {
-                    $response = array(
-                        "message" => '* No se encontraron pagos.',
-                        "status" => false,
-                    );
-                } else {
-                    if ($validarPago->estado == '1') {
-                        // $sumaPagoDB = $sumaPagoDB + $validarPago->monto;
-                        // validar pago con el numero de documento del estudiante
-                        $bancoPagoValidacion = BancoPago::where([
-                            ["secuencia", $validarPago->secuencia],
-                            ["imp_pag", $validarPago->monto],
-                            ["fch_pag", $validarPago->fecha],
-                            ["concepto", '00000067']
-                        ])
-                            ->first();
-
-                        if ($bancoPagoValidacion->cuenta == '0701010736') {
-                            $validarDocumento = BancoPago::where([
-                                ["secuencia", $validarPago->secuencia],
-                                ["imp_pag", $validarPago->monto],
-                                ["fch_pag", $validarPago->fecha],
-                            ])
-                                ->first();
-                        } else {
-                            $validarDocumento = BancoPago::where([
-                                ["secuencia", $validarPago->secuencia],
-                                ["imp_pag", $validarPago->monto],
-                                ["fch_pag", $validarPago->fecha],
-                                ["num_doc", str_pad($estudiante->nro_documento, 15, '0', STR_PAD_LEFT)],
-                            ])
-                                ->first();
-                        }
-
-
-                        if (empty($validarDocumento)) {
-                            $response = array(
-                                "message" => '* Error al validar pago, Ud. esta intentando ingresar un pago que no esta a su nombre.',
-                                "status" => false,
-                            );
-                        } else {
-
-                            DB::beginTransaction();
-                            try {
-                                $pago = Pago::find($validarPago->id);
-                                $pago->estado = '2';
-                                $pago->save();
-
-                                $mensualPago = new InscripcionPago();
-                                if ($bancoPagoValidacion->cuenta == '0701010736') {
-                                    $mensualPago->monto = round($validarPago->monto, 2);
-                                } else {
-                                    $mensualPago->monto = round($validarPago->monto - 1, 2);
-                                }
-                                $mensualPago->inscripciones_id = $inscripcion->id;
-                                $mensualPago->pagos_id = $validarPago->id;
-                                $mensualPago->concepto_pagos_id = 2;
-                                $mensualPago->save();
-                                // ambas validaciones correctas
-                                // SELECT * FROM tarifa_estudiantes AS te WHERE te.monto != te.pagado AND te.estudiantes_id=14 ORDER BY te.id ASC LIMIT 1;
-                                $tarifaEstudiante = TarifaEstudiante::where([
-                                    ["estudiantes_id", $idEstudiante],
-                                    ["periodos_id", $inscripcion->periodos_id]
-                                ])
-                                    ->whereColumn("monto", "!=", "pagado")
-                                    ->orderBy("nro_cuota", "asc")
-                                    ->orderBy("id", "asc")
-                                    ->get();
-                                $deudaCuota = 0;
-                                // $pagoActual =
-                                if ($bancoPagoValidacion->cuenta == '0701010736') {
-                                    $restoActual = $validarDocumento->imp_pag;
-                                } else {
-                                    $restoActual = $validarDocumento->imp_pag - 1;
-                                }
-
-                                foreach ($tarifaEstudiante as $key => $tarifa) {
-                                    $deudaCuota = $tarifa->monto - $tarifa->pagado;
-                                    // $pagar = $validarDocumento->imp_pag
-                                    $crono = CronogramaPago::where([
-                                        ["periodos_id", $inscripcion->periodos_id],
-                                        ["nro_cuota", $tarifa->nro_cuota]
-                                    ])->first();
-                                    if (strtotime($validarDocumento->fch_pag) > strtotime($crono->fin)) {
-
-                                        if ($restoActual >= $deudaCuota + 30) {
-
-                                            $storeTarifa = TarifaEstudiante::find($tarifa->id);
-                                            $tmpMora = $storeTarifa->mora;
-                                            $storeTarifa->mora = 30;
-                                            $storeTarifa->pagado = $tarifa->monto;
-                                            $storeTarifa->save();
-                                            $restoActual = $restoActual - ($deudaCuota + 30) + $tmpMora;
-                                        } else {
-                                            $storeTarifa = TarifaEstudiante::find($tarifa->id);
-                                            $tmpMora = $storeTarifa->mora;
-                                            if ($restoActual >= 30) {
-                                                $storeTarifa->mora = 30;
-                                                $storeTarifa->pagado = $storeTarifa->pagado + ($restoActual - 30) + $tmpMora;
-                                            } else {
-                                                $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
-                                            }
-
-                                            $storeTarifa->save();
-                                            $restoActual = 0;
-                                        }
-                                    } else {
-                                        if ($restoActual >= $deudaCuota) {
-
-                                            $storeTarifa = TarifaEstudiante::find($tarifa->id);
-                                            // $storeTarifa->mora = 30;
-                                            $storeTarifa->pagado = $tarifa->monto;
-                                            $storeTarifa->save();
-                                            $restoActual = $restoActual - $deudaCuota;
-                                        } else {
-                                            $storeTarifa = TarifaEstudiante::find($tarifa->id);
-                                            $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
-                                            $storeTarifa->save();
-                                            $restoActual = 0;
-                                        }
-                                    }
-                                }
-
-                                if ($restoActual > 0 && $tarifaEstudiante->isNotEmpty()) {
-                                    $storeTarifa = TarifaEstudiante::where([
-                                        ["estudiantes_id", $idEstudiante],
-                                        ["periodos_id", $inscripcion->periodos_id],
-                                        ["nro_cuota", 4]
-                                    ])->orderBy("id", "asc")->first();
-
-                                    if ($storeTarifa) {
-                                        $storeTarifa->pagado = $storeTarifa->pagado + $restoActual;
-                                        $storeTarifa->save();
-                                    }
-                                }
-
-                                DB::commit();
-                                $message = 'Pago registrado correctamente.';
-                                $status = true;
-                                $error = '';
-                            } catch (\Exception $e) {
-                                DB::rollback();
-                                $message = 'Error al registrar pago, intentelo nuevamante.';
-                                $status = false;
-                                $error = $e;
-                            }
-                            $response = array(
-                                "message" => $message,
-                                "status" => $status,
-                                "error" => $error
-                            );
-                        }
-                    } else {
-                        $response = array(
-                            "message" => '* No se encontraron pagos.',
-                            "status" => false,
-                        );
-                    }
-                }
-                $cont = $cont + 1;
-            }
-        } else {
-
-            $response = array(
-                "message" => '* No se encontraron pagos.',
-                "status" => false,
-            );
+        $estudiante = $inscripcion->estudiante()->first();
+        if (! $estudiante) {
+            return response()->json($this->respuestaOperacionFallida(
+                'No se encontro al estudiante de la inscripcion activa.'
+            ));
         }
 
-        // if (isset($tokens)) {
-        //     while ($cont < count($tokens)) {
+        $documento = (string) $estudiante->nro_documento;
+        $tokens = array_values(array_unique($request->input('tokens', [])));
 
-        //         $validarPago = Pago::where('token', $tokens[$cont])->first();
-        //         $comisionBanco = $comisionBanco + 0.60;
+        try {
+            DB::transaction(function () use ($tokens, $idEstudiante, $inscripcion, $documento) {
+                foreach ($tokens as $token) {
+                    $pago = Pago::where('token', $token)->lockForUpdate()->first();
 
-        //         if (empty($validarPago)) {
-        //             $pagoExistente = false;
-        //         } else {
-        //             if ($validarPago->estado == '1') {
-        //                 $sumaPagoDB = $sumaPagoDB + $validarPago->monto;
-        //                 // validar pago con el numero de documento del estudiante
-        //                 $validarDocumento = BancoPago::where([
-        //                     ["secuencia", $validarPago->secuencia],
-        //                     ["imp_pag", $validarPago->monto],
-        //                     ["fch_pag", $validarPago->fecha],
-        //                     ["num_doc", str_pad($estudiante->nro_documento, 15, '0', STR_PAD_LEFT)],
-        //                 ])
-        //                     ->first();
-        //                 if (empty($validarDocumento)) {
-        //                     $documentoValidado = false;
-        //                 } else {
+                    if (! $pago || ! $this->pagoPerteneceAlEstudiante(
+                        $pago,
+                        $idEstudiante,
+                        (int) $inscripcion->periodos_id,
+                        $documento
+                    )) {
+                        throw new \RuntimeException('No se encontro un pago valido para esta inscripcion.');
+                    }
 
-        //                     if (strtotime($validarDocumento->fecha) > strtotime($cronograma->fin)) {
-        //                         dd(strtotime($validarDocumento->fecha) > strtotime($cronograma->fin));
-        //                         $validarFecha = false;
-        //                     }
-        //                 }
-        //             } else {
-        //                 $pagoExistente = false;
-        //             }
-        //         }
-        //         $cont = $cont + 1;
-        //     }
-        // } else {
-        //     $pagoExistente = false;
-        // }
+                    if ((string) $pago->estado !== '1') {
+                        throw new \RuntimeException('El pago ya ha sido registrado anteriormente.');
+                    }
 
-        // // total a pagar hasta la cuota actual
-        // $descuento = '0';
-        // switch ($inscripcion->tipo_estudiante) {
-        //     case '1':
-        //         $descuento = '1';
-        //         break;
-        //     case '2':
-        //         $descuento = '2';
-        //         break;
-        //     case '3':
-        //         $descuento = '2';
-        //         break;
-        //     case '4':
-        //         $descuento = '2';
-        //         break;
-        //     case '6':
-        //         $descuento = '2';
-        //         break;
-        //     default:
-        //         $descuento = '0';
-        //         break;
-        // }
+                    $bancoPago = $this->buscarBancoDelPago($pago, $documento, true);
+                    if (! $bancoPago) {
+                        throw new \RuntimeException(
+                            'No se encontro el pago bancario o no pertenece al estudiante.'
+                        );
+                    }
 
-        // $tarifaInscripcion = Tarifa::where([
-        //     ['modalidad', $inscripcion->modalidad],
-        //     ['concepto_pagos_id', '1'],
-        //     ['tipo_estudiante', $descuento]
-        // ])->first();
+                    if (! $this->bancoPagoDisponible($bancoPago)) {
+                        throw new \RuntimeException('El pago bancario ya fue utilizado anteriormente.');
+                    }
 
-        // $tarifaMensual = Tarifa::where([
-        //     ['modalidad', $inscripcion->modalidad],
-        //     ['concepto_pagos_id', '2'],
-        //     ['tipo_estudiante', $descuento]
-        // ])->first();
+                    if (InscripcionPago::where('pagos_id', $pago->id)->exists()) {
+                        throw new \RuntimeException('El pago ya se encuentra asociado a una inscripcion.');
+                    }
 
-        // if ($validarFecha) {
-        // $totalPagar = floatVal($tarifaInscripcion->importe) + floatVal($tarifaMensual->importe * $cronograma->nro_cuota);
-        // $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", "<=", $cronograma->nro_cuota]])->get();
+                    $montoAplicable = $this->montoBancoAplicable($bancoPago);
+                    if ($montoAplicable <= 0) {
+                        throw new \RuntimeException('El monto del pago no es valido.');
+                    }
 
-        // $deuda = 0;
-        // $arrayDeudas = array();
-        // foreach ($tarifaEstudiante as $key => $value) {
+                    $inscripcionPago = new InscripcionPago();
+                    $inscripcionPago->monto = $montoAplicable;
+                    $inscripcionPago->inscripciones_id = $inscripcion->id;
+                    $inscripcionPago->pagos_id = $pago->id;
+                    $inscripcionPago->concepto_pagos_id = 2;
+                    if ($this->tablaTieneColumna('inscripcion_pagos', 'periodos_id')) {
+                        $inscripcionPago->periodos_id = $inscripcion->periodos_id;
+                    }
+                    $inscripcionPago->save();
 
-        //     if ($value->nro_cuota == 0) {
-        //         $deuda = $deuda + $value->monto - $value->pagado;
-        //     } else {
+                    $this->distribuirPagoEnTarifas(
+                        $idEstudiante,
+                        (int) $inscripcion->periodos_id,
+                        $montoAplicable,
+                        $bancoPago->fch_pag
+                    );
 
-        //         if ($value->monto - $value->pagado == 0) {
-        //             $deuda = 0;
-        //         } else {
-        //             $crono = CronogramaPago::where("nro_cuota", $value->nro_cuota)->first();
-        //             if (date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin . "+ 1 days"))) {
-        //                 $deuda = $deuda + $value->monto - $value->pagado;
-        //             } else {
-        //                 if ($validarFecha) {
-        //                     $deuda = $deuda + $value->monto - $value->pagado;
-        //                 } else {
-        //                     $deuda = $deuda + $value->monto - $value->pagado + 30.00;
-        //                     array_push($arrayDeudas, $value->nro_cuota);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        // dd(date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin . "+ 1 days")));
-        // dd($deuda);
+                    if ($this->tablaTieneColumna('pagos', 'periodos_id')) {
+                        $pago->periodos_id = $inscripcion->periodos_id;
+                    }
+                    if ($this->tablaTieneColumna('pagos', 'estudiantes_id')) {
+                        $pago->estudiantes_id = $idEstudiante;
+                    }
+                    if ($this->tablaTieneColumna('pagos', 'concepto_pagos_id')) {
+                        $pago->concepto_pagos_id = 1;
+                    }
+                    if ($this->tablaTieneColumna('pagos', 'banco_pagos_id')) {
+                        $pago->banco_pagos_id = $bancoPago->id;
+                    }
+                    if ($this->tablaTieneColumna('pagos', 'procedencia')) {
+                        $pago->procedencia = '1';
+                    }
+                    $pago->estado = '2';
+                    $pago->save();
 
-        // $totalPagar = number_format($deuda, 2);
-        // $importeActual = $sumaPagoDB - $comisionBanco;
+                    $bancoPago->estado = '2';
+                    if ($this->tablaTieneColumna('banco_pagos', 'fecha_usado')) {
+                        $bancoPago->fecha_usado = now();
+                    }
+                    if ($this->tablaTieneColumna('banco_pagos', 'estudiantes_id')) {
+                        $bancoPago->estudiantes_id = $idEstudiante;
+                    }
+                    $bancoPago->save();
+                }
+            });
 
-        // if ($pagoExistente) {
-        //     if ($documentoValidado) {
-        //         if (round($importeActual, 2) >= $totalPagar) {
-        //             DB::beginTransaction();
-        //             try {
-        //                 $cont = 0;
-        //                 while ($cont < count($tokens)) {
-        //                     $pago = Pago::where('token', $tokens[$cont])->first();
+            return response()->json([
+                'message' => 'Pago registrado correctamente.',
+                'status' => true,
+            ]);
+        } catch (\RuntimeException $e) {
+            return response()->json($this->respuestaOperacionFallida($e->getMessage()));
+        } catch (\Throwable $e) {
+            report($e);
 
-        //                     $pago = Pago::find($pago->id);
-        //                     $pago->estado = '2';
-        //                     $pago->save();
-
-        //                     $pagoSinComision = round($pago->monto - 0.60, 2);
-
-        //                     $mensualPago = new InscripcionPago();
-        //                     $mensualPago->monto = $pagoSinComision;
-        //                     $mensualPago->inscripciones_id = $inscripcion->id;
-        //                     $mensualPago->pagos_id = $pago->id;
-        //                     $mensualPago->concepto_pagos_id = 2;
-        //                     $mensualPago->save();
-
-        //                     $cont = $cont + 1;
-        //                 }
-        //                 foreach ($tarifaEstudiante as $key => $value) {
-        //                     $tarifaMensual = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", $value->nro_cuota]])->first();
-        //                     $tarifaMensual->pagado = $tarifaMensual->monto;
-        //                     if (in_array($value->nro_cuota, $arrayDeudas)) {
-        //                         $tarifaMensual->mora = 30.00;
-        //                     }
-        //                     $tarifaMensual->save();
-        //                 }
-        //                 $tarifaAdicional = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", $cronograma->nro_cuota + 1]])->first();
-        //                 $tarifaAdicional->pagado = $importeActual - $totalPagar;
-        //                 $tarifaAdicional->save();
-
-        //                 DB::commit();
-        //                 $message = 'Pago registrado correctamente.';
-        //                 $status = true;
-        //                 $error = '';
-        //             } catch (\Exception $e) {
-        //                 DB::rollback();
-        //                 $message = 'Error al registrar pago, intentelo nuevamante.';
-        //                 $status = false;
-        //                 $error = $e;
-        //             }
-        //             $response = array(
-        //                 "message" => $message,
-        //                 "status" => $status,
-        //                 "error" => $error
-        //             );
-        //         } else {
-        //             $response = array(
-        //                 "message" => '* El monto total de pago es menor al monto total a pagar.',
-        //                 "status" => false,
-        //             );
-        //         }
-        //     } else {
-        //         $response = array(
-        //             "message" => '* Error al validar pago, Ud. esta intentando ingresar un pago que no esta a su nombre.',
-        //             "status" => false,
-        //         );
-        //     }
-        // } else {
-        //     $response = array(
-        //         "message" => '* No se encontraron pagos.',
-        //         "status" => false,
-        //     );
-        // }
-        // } else {
-        //     $tarifaEstudiante = TarifaEstudiante::where([["estudiantes_id", $idEstudiante], ["nro_cuota", "<=", $cronograma->nro_cuota]])->get();
-        //     $deuda = 0;
-        //     foreach ($tarifaEstudiante as $key => $value) {
-
-        //         if ($value->nro_cuota == 0) {
-        //             $deuda = $deuda + $value->monto - $value->pagado;
-        //         } else {
-
-        //             if ($value->monto - $value->pagado == 0) {
-        //                 $deuda = 0;
-        //             } else {
-        //                 $crono = CronogramaPago::where("nro_cuota", $value->nro_cuota)->first();
-        //                 if (date('Y-m-d') <= date("Y-m-d", strtotime($crono->fin . "+ 1 days"))) {
-        //                     $deuda = $deuda + $value->monto - $value->pagado;
-        //                 } else {
-        //                     $deuda = $deuda + $value->monto - $value->pagado + 30.00;
-        //                 }
-        //             }
-        //         }
-        //     }
-
-        //     $totalPagar = number_format($deuda, 2);
-        //     $importeActual = $sumaPagoDB - $comisionBanco;
-
-        //     if ($pagoExistente) {
-        //         if ($documentoValidado) {
-        //             if (round($importeActual, 2) >= $totalPagar) {
-        //                 DB::beginTransaction();
-        //                 try {
-        //                     $cont = 0;
-        //                     while ($cont < count($tokens)) {
-        //                         $pago = Pago::where('token', $tokens[$cont])->first();
-
-        //                         $pago = Pago::find($pago->id);
-        //                         $pago->estado = '2';
-        //                         $pago->save();
-        //                         if ($cont == 0) {
-        //                             $pagoSinComision = round($pago->monto - 0.60, 2) - floatVal($tarifaMora->importe);
-        //                             $mora = new InscripcionPago();
-        //                             $mora->monto = 30.00;
-        //                             $mora->inscripciones_id = $inscripcion->id;
-        //                             $mora->pagos_id = $pago->id;
-        //                             $mora->concepto_pagos_id = 3;
-        //                             $mora->save();
-        //                         } else {
-        //                             $pagoSinComision = round($pago->monto - 0.60, 2);
-        //                         }
-        //                         $mensualPago = new InscripcionPago();
-        //                         $mensualPago->monto = $pagoSinComision;
-        //                         $mensualPago->inscripciones_id = $inscripcion->id;
-        //                         $mensualPago->pagos_id = $pago->id;
-        //                         $mensualPago->concepto_pagos_id = 2;
-        //                         $mensualPago->save();
-
-        //                         $cont = $cont + 1;
-        //                     }
-        //                     DB::commit();
-        //                     $message = 'Pago registrado correctamente.';
-        //                     $status = true;
-        //                     $error = '';
-        //                 } catch (\Exception $e) {
-        //                     DB::rollback();
-        //                     $message = 'Error al registrar pago, intentelo nuevamante.';
-        //                     $status = false;
-        //                     $error = $e;
-        //                 }
-        //                 $response = array(
-        //                     "message" => $message,
-        //                     "status" => $status,
-        //                     "error" => $error
-        //                 );
-        //             } else {
-        //                 $response = array(
-        //                     "message" => '* El monto total de pago es menor al monto total a pagar.',
-        //                     "status" => false,
-        //                 );
-        //             }
-        //         } else {
-        //             $response = array(
-        //                 "message" => '* Error al validar pago, Ud. esta intentando ingresar un pago que no esta a su nombre.',
-        //                 "status" => false,
-        //             );
-        //         }
-        //     } else {
-        //         $response = array(
-        //             "message" => '* No se encontraron pagos.',
-        //             "status" => false,
-        //         );
-        //     }
-        // }
-        return response()->json($response);
+            return response()->json($this->respuestaOperacionFallida(
+                'Error al registrar el pago. Intentelo nuevamente.'
+            ));
+        }
     }
 
     public function registrarPagoCuotaMora(Request $request)
@@ -1212,14 +1156,5 @@ class PagoController extends Controller
             }
         }
         return response()->json($response);
-    }
-    public function save_file($file, $extension)
-    {
-        $date = date('Ymd_His');
-        $first = substr(str_shuffle("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"), 0, 4);
-        $file_name = $date . $first . '.' . $extension;
-        $name_complete = $this->dateTimePartial . '/' . $file_name;
-        Storage::disk('vouchers')->putFileAs($this->dateTimePartial, $file, $file_name);
-        return $name_complete;
     }
 }
