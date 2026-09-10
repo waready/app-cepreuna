@@ -46,7 +46,18 @@ class AsistenciaController extends Controller
             ->where('ad.docentes_id', $docenteApto->docentes_id)
             ->where('ad.periodos_id', $periodo->id)
             ->where('ca.periodos_id', $periodo->id)
-            ->where('ca.estado', '1')
+            // NO se filtra por `ca.estado`. Antes se exigia que la carga
+            // siguiera vigente, y eso escondia las suplencias: cuando el
+            // suplente devuelve el curso al titular su carga pasa a estado '0'
+            // -solo uno dicta a la vez- y con ella desaparecia del panel una
+            // clase que si dicto y que si se le paga. En el ciclo 2026-II eran
+            // 214 asistencias de 112 docentes, 537 horas de pago que no podian
+            // ver.
+            //
+            // El estado de la carga dice quien dicta HOY; la asistencia dice lo
+            // que paso ESE dia, y eso no cambia despues. La fila ya esta acotada
+            // al docente por `ad.docentes_id`, asi que no hace falta ese filtro
+            // para nada.
             ->orderBy('ad.fecha')
             ->orderBy('ad.hora_inicio')
             ->get();
@@ -57,7 +68,12 @@ class AsistenciaController extends Controller
             $obj = new \stdClass;
             $obj->start = $val->fecha . ' ' . $val->hora_inicio;
             $obj->end = $val->fecha . ' ' . $val->hora_fin;
-            $obj->title = $val->curso . " (" . $val->grupo . ")";
+            // `ca.tipo` = '2' es suplencia. Ya se consultaba pero no se usaba:
+            // sin decirlo, al docente le aparecia una clase que no es de su
+            // horario habitual y no tenia como saber por que.
+            $esSuplencia = (string) $val->tipo === '2';
+            $obj->title = $val->curso . " (" . $val->grupo . ")" . ($esSuplencia ? ' — Suplencia' : '');
+            $obj->es_suplencia = $esSuplencia;
             $obj->class = $val->estado == '1' ? 'asis bg-success-asistencia' : ($val->estado == '2' ? 'asis bg-warning-asistencia' : 'asis bg-danger-asistencia');
             $obj->obs = $val->observacion;
             $obj->estado = $val->estado;
