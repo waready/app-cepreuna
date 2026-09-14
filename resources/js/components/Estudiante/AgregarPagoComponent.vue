@@ -107,7 +107,7 @@
             </div>
             <template #footer>
                 <Button label="Cerrar" icon="pi pi-times" @click="openModal = false" class="p-button-secondary p-button-sm" />
-                <Button label="Guardar" icon="pi pi-check" @click="submit" autofocus :loading="saveLoading" class="p-button-success p-button p-button-sm" />
+                <Button label="Validar" icon="pi pi-check" @click="submit" autofocus :loading="saveLoading" class="p-button-success p-button p-button-sm" />
             </template>
         </Dialog>
     </div>
