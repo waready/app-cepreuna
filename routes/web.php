@@ -33,6 +33,7 @@ use App\Http\Controllers\NosotrosController;
 // Panel Estudiante
 use App\Http\Controllers\Docente\HorarioController as HorarioDocente;
 use App\Http\Controllers\Estudiante\PagoController as PagoEstudiante;
+use App\Http\Controllers\Estudiante\PagoRegistroController as PagoRegistroEstudiante;
 use App\Http\Controllers\Estudiante\TestController as TestEstudiante;
 use App\Http\Controllers\Estudiante\CursosController as CursoEstudiante;
 use App\Http\Controllers\LibroReclamaciones\LibroReclamacionesController;
@@ -258,8 +259,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                         Route::get('/test', [TestEstudiante::class , 'index'])->name('estudiantes.test');
                         Route::post('/validar-test', [TestEstudiante::class , 'store'])->name('estudiantes.test.validar');
                         Route::get('/constancia-test/{id}', [TestEstudiante::class , 'pdfConstancia'])->name('estudiantes.test.constancia');
-                        Route::post('/validar-pago-cuota', [PagoEstudiante::class , 'validarPagoCuota'])->name('estudiantes.validar-pago');
-                        Route::post('/registrar-pago-cuota', [PagoEstudiante::class , 'registrarPagoCuota'])->name('estudiantes.registrar-pago');
+                        Route::post('/validar-pago-cuota', [PagoRegistroEstudiante::class , 'validar'])->name('estudiantes.validar-pago');
+                        Route::post('/registrar-pago-cuota', [PagoRegistroEstudiante::class , 'registrar'])->name('estudiantes.registrar-pago');
                     }
                     );
                 }

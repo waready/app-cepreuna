@@ -10,6 +10,66 @@ use RuntimeException;
 
 class PagoArchivosApi
 {
+    public function validarPago(array $data, UploadedFile $voucher): array
+    {
+        $path = $voucher->getRealPath();
+        $stream = is_string($path) ? fopen($path, 'rb') : false;
+
+        if ($stream === false) {
+            throw new RuntimeException('No se pudo leer el comprobante adjunto.');
+        }
+
+        try {
+            $response = $this->client()
+                ->attach(
+                    'voucher',
+                    $stream,
+                    $voucher->getClientOriginalName(),
+                    ['Content-Type' => $voucher->getMimeType() ?: 'application/octet-stream']
+                )
+                ->post($this->url('/pagos/validar'), $data);
+        } catch (ConnectionException $exception) {
+            throw new RuntimeException(
+                'El servicio central de pagos no esta disponible.',
+                0,
+                $exception
+            );
+        } finally {
+            fclose($stream);
+        }
+
+        $this->ensureSuccessful($response);
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('El servicio central devolvio una respuesta de pago invalida.');
+        }
+
+        return $payload;
+    }
+
+    public function registrarPagos(array $data): array
+    {
+        try {
+            $response = $this->client()->post($this->url('/pagos/registrar'), $data);
+        } catch (ConnectionException $exception) {
+            throw new RuntimeException(
+                'El servicio central de pagos no esta disponible.',
+                0,
+                $exception
+            );
+        }
+
+        $this->ensureSuccessful($response);
+        $payload = $response->json();
+
+        if (! is_array($payload)) {
+            throw new RuntimeException('El servicio central devolvio una respuesta de pago invalida.');
+        }
+
+        return $payload;
+    }
+
     public function guardarVoucher(UploadedFile $voucher): string
     {
         $path = $voucher->getRealPath();
@@ -96,10 +156,31 @@ class PagoArchivosApi
         }
 
         $payload = $response->json();
-        $message = is_array($payload) && ! empty($payload['message'])
-            ? (string) $payload['message']
-            : 'El servicio central no pudo procesar el comprobante.';
+        $message = $this->firstValidationMessage($payload);
 
-        throw new RuntimeException($message);
+        if ($message === null && is_array($payload) && ! empty($payload['message'])) {
+            $message = (string) $payload['message'];
+        }
+
+        throw new RuntimeException($message ?: 'El servicio central no pudo procesar el pago.');
+    }
+
+    private function firstValidationMessage($payload): ?string
+    {
+        if (! is_array($payload) || ! isset($payload['errors']) || ! is_array($payload['errors'])) {
+            return null;
+        }
+
+        foreach ($payload['errors'] as $messages) {
+            if (is_array($messages) && isset($messages[0]) && is_string($messages[0])) {
+                return $messages[0];
+            }
+
+            if (is_string($messages) && $messages !== '') {
+                return $messages;
+            }
+        }
+
+        return null;
     }
 }
