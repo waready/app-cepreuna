@@ -114,9 +114,31 @@ class HorarioController extends Controller
                 ->where("h.periodos_id", $periodo->id)
                 ->where("ca.periodos_id", $periodo->id)
                 ->where("ca.docentes_id", $docenteApto->docentes_id)
-                ->where("ca.estado", "1")
+                // Vigente, o titular dado de baja SIN que nadie haya tomado el
+                // curso: designar un suplente por un dia deja al titular en
+                // estado '0' y no siempre se le reactiva, y entonces perdia de
+                // su horario una clase que sigue dictando. Si existe una carga
+                // vigente del mismo grupo y curso, si hubo reemplazo y no le
+                // toca verla. Se exige titular para que una suplencia ya
+                // terminada no siga apareciendo en el horario del suplente.
+                ->where(function ($q) use ($periodo) {
+                    $q->where("ca.estado", "1")
+                        ->orWhere(function ($sinReemplazo) use ($periodo) {
+                            $sinReemplazo->where("ca.tipo", "1")
+                                ->whereNotExists(function ($vigente) use ($periodo) {
+                                    $vigente->select(DB::raw(1))
+                                        ->from("carga_academicas as v")
+                                        ->whereColumn("v.grupo_aulas_id", "ca.grupo_aulas_id")
+                                        ->whereColumn("v.cursos_id", "ca.cursos_id")
+                                        ->where("v.periodos_id", $periodo->id)
+                                        ->where("v.estado", "1");
+                                });
+                        });
+                })
                 ->whereIn("h.plantilla_horarios_id", $plantillas->pluck("id"))
                 ->whereIn("h.dia", collect($dias)->pluck("id"))
+                ->orderByRaw("ca.estado = '1' DESC")
+                ->orderByRaw("ca.tipo = '1' DESC")
                 ->orderBy("h.id")
                 ->get();
 

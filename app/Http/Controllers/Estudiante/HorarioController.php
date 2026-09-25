@@ -35,6 +35,30 @@ class HorarioController extends Controller
         ];
     }
 
+    /**
+     * Quien dicta hoy cada curso del grupo, para los bloques cuya carga quedo
+     * de baja. Se prefiere al titular sobre el suplente: el horario semanal no
+     * tiene fecha, y una suplencia de un dia no hace suyo el curso.
+     *
+     * @return array<int|string, string>
+     */
+    protected function docenteVigentePorCurso($grupoAulasId, $periodosId): array
+    {
+        return DB::table("carga_academicas as ca")
+            ->select("ca.cursos_id", DB::raw("CONCAT(d.nombres,' ',d.paterno) as docente"))
+            ->join("docentes as d", "d.id", "ca.docentes_id")
+            ->where("ca.periodos_id", $periodosId)
+            ->where("ca.grupo_aulas_id", $grupoAulasId)
+            ->where("ca.estado", "1")
+            ->orderByRaw("ca.tipo = '1' DESC")
+            ->orderBy("ca.id")
+            ->get()
+            ->groupBy("cursos_id")
+            ->map(fn ($cargas) => trim((string) $cargas->first()->docente))
+            ->filter()
+            ->all();
+    }
+
     protected function construirTurnoHorario($turno, $plantillas, array $dias, array $horariosPorClave)
     {
         $turnoHorario = new \stdClass;
@@ -113,24 +137,53 @@ class HorarioController extends Controller
                 ->get();
 
             if ($plantillas->isNotEmpty()) {
+                $docentePorCurso = $this->docenteVigentePorCurso(
+                    $matricula->grupo_aulas_id,
+                    $matricula->periodos_id
+                );
+
+                // La franja es la unidad, no la carga. Un bloque de `horarios`
+                // que sigue existiendo es una clase que sigue en la rejilla:
+                // cuando se retira un curso se le borran los bloques, asi que
+                // lo que queda esta vigente aunque su carga no lo este.
+                //
+                // Filtrando `ca.estado = '1'` la app dejaba la franja VACIA en
+                // los casos en que la carga quedo de baja sin que nadie la
+                // tomara -la suplencia de un dia suspende al titular y no
+                // siempre se le reactiva-, y el estudiante no veia una clase
+                // que si tiene. El panel de intranet la muestra, que es por
+                // donde salio el reporte: Fisica del S-103 los viernes.
+                //
+                // El orden decide la franja: primero la carga vigente, que es
+                // quien dicta; luego el titular antes que el suplente, porque
+                // este es un horario semanal sin fecha y la suplencia de un dia
+                // no cambia de quien es el curso; y a igualdad, el bloque mas
+                // antiguo, para no alterar lo que ya se venia mostrando.
                 $horarios = DB::table("horarios as h")
                     ->select(
                         "h.id",
                         "h.plantilla_horarios_id",
                         "h.dia",
+                        "ca.cursos_id",
+                        "ca.estado as carga_estado",
                         "c.denominacion as curso_denominacion",
                         "c.color as curso_color",
                         DB::raw("CONCAT(d.nombres,' ',d.paterno) as docente")
                     )
                     ->join("carga_academicas as ca", "ca.id", "h.carga_academicas_id")
                     ->join("cursos as c", "c.id", "ca.cursos_id")
-                    ->join("docentes as d", "d.id", "ca.docentes_id")
+                    // LEFT: una carga sin docente asignado tiene que salir con
+                    // el curso y un "Por asignar". Con INNER desaparecia la
+                    // franja entera, y un grupo al que todavia no le reparten
+                    // docentes veia el horario en blanco.
+                    ->leftJoin("docentes as d", "d.id", "ca.docentes_id")
                     ->where("h.periodos_id", $matricula->periodos_id)
                     ->where("ca.periodos_id", $matricula->periodos_id)
                     ->where("ca.grupo_aulas_id", $matricula->grupo_aulas_id)
-                    ->where("ca.estado", "1")
                     ->whereIn("h.plantilla_horarios_id", $plantillas->pluck("id"))
                     ->whereIn("h.dia", collect($dias)->pluck("id"))
+                    ->orderByRaw("ca.estado = '1' DESC")
+                    ->orderByRaw("ca.tipo = '1' DESC")
                     ->orderBy("h.id")
                     ->get();
 
@@ -140,9 +193,16 @@ class HorarioController extends Controller
                         continue;
                     }
 
+                    // De una carga de baja no sirve su docente: si hubo
+                    // reemplazo, el que dicta es el de la carga vigente.
+                    $docente = trim((string) $item->docente);
+                    if ((string) $item->carga_estado !== '1') {
+                        $docente = $docentePorCurso[$item->cursos_id] ?? $docente;
+                    }
+
                     $horarioItem = new \stdClass;
                     $horarioItem->id = $item->id;
-                    $horarioItem->docente = $item->docente;
+                    $horarioItem->docente = $docente !== '' ? $docente : 'Por asignar';
                     $horarioItem->curso = (object) [
                         "denominacion" => $item->curso_denominacion,
                         "color" => $item->curso_color,
