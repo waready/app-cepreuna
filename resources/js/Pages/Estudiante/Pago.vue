@@ -19,8 +19,21 @@
                             <div class="col-12 text-center pt-0">
                                 <em class="text-sm">del {{ datos.cronograma.inicio }} al {{ datos.cronograma.fin }}</em>
                             </div>
-                            <div class="col-12 py-7 text-center font-bold text-orange-500">
-                                S/ <span class="text-5xl"> {{ datos.deuda }}</span>
+                            <div class="col-12 py-7 text-center">
+                                <div class="debt-summary">
+                                    <div class="debt-value">
+                                        <span class="debt-currency">S/</span>
+                                        <strong>{{ datos.deuda }}</strong>
+                                    </div>
+                                    <template v-if="tieneDeuda">
+                                        <span class="debt-plus" aria-hidden="true">+</span>
+                                        <div class="bank-commission">
+                                            <span>S/ 1.00</span>
+                                            <small>comisi&oacute;n bancaria</small>
+                                        </div>
+                                    </template>
+                                </div>
+                                <p v-if="tieneDeuda" class="bank-commission-note">La comisi&oacute;n no est&aacute; incluida en la deuda.</p>
                             </div>
                             <div class="col-12 text-center">
                                 <span class="text-base">{{ datos.tipo_descuento }}</span>
@@ -187,8 +200,21 @@
                             <div class="col-12 text-center pt-0">
                                 <em class="text-sm">del {{ datos.cronograma.inicio }} al {{ datos.cronograma.fin }}</em>
                             </div>
-                            <div class="col-12 py-7 text-center font-bold text-orange-500">
-                                S/ <span class="text-5xl"> {{ datos.deuda }}</span>
+                            <div class="col-12 py-7 text-center">
+                                <div class="debt-summary">
+                                    <div class="debt-value">
+                                        <span class="debt-currency">S/</span>
+                                        <strong>{{ datos.deuda }}</strong>
+                                    </div>
+                                    <template v-if="tieneDeuda">
+                                        <span class="debt-plus" aria-hidden="true">+</span>
+                                        <div class="bank-commission">
+                                            <span>S/ 1.00</span>
+                                            <small>comisi&oacute;n bancaria</small>
+                                        </div>
+                                    </template>
+                                </div>
+                                <p v-if="tieneDeuda" class="bank-commission-note">La comisi&oacute;n no est&aacute; incluida en la deuda.</p>
                             </div>
                             <div class="col-12 text-center">
                                 <span class="text-base">{{ datos.tipo_descuento }}</span>
@@ -488,6 +514,8 @@ export default {
         // vouchers
         const vouchers = ref(data.value.vouchers);
         const datos = ref(data.value);
+        const deudaNumerica = computed(() => Number.parseFloat(String(datos.value.deuda || 0).replace(/,/g, "")) || 0);
+        const tieneDeuda = computed(() => deudaNumerica.value > 0);
         // Aperturar Asistencia
         const form = useForm({
             area: null,
@@ -560,6 +588,7 @@ export default {
             resultPago,
             vouchers,
             datos,
+            tieneDeuda,
             submit,
             fields,
             isDesktop,
@@ -576,6 +605,69 @@ export default {
     width: 7rem;
     height: auto;
     font-size: 2rem;
+}
+
+.debt-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: #f97316;
+}
+
+.debt-value {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.3rem;
+    white-space: nowrap;
+}
+
+.debt-currency {
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.debt-value strong {
+    font-size: clamp(2.5rem, 5vw, 3.5rem);
+    line-height: 1;
+}
+
+.debt-plus {
+    color: #fb923c;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.bank-commission {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid #fed7aa;
+    border-radius: 0.85rem;
+    background: #fff7ed;
+    color: #c2410c;
+    line-height: 1.1;
+    text-align: left;
+}
+
+.bank-commission span {
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+.bank-commission small {
+    margin-top: 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.bank-commission-note {
+    margin: 0.75rem 0 0;
+    color: #78716c;
+    font-size: 0.78rem;
 }
 
 @media (max-width: 576px) {
@@ -597,6 +689,18 @@ export default {
     .pagos-panel :deep(.p-datatable-tbody > tr > td) {
         padding: 0.55rem 0.5rem;
         white-space: nowrap;
+    }
+
+    .debt-summary {
+        gap: 0.55rem;
+    }
+
+    .debt-value strong {
+        font-size: 2.65rem;
+    }
+
+    .bank-commission {
+        padding: 0.5rem 0.7rem;
     }
 }
 </style>
