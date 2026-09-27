@@ -33,7 +33,6 @@
                                         </div>
                                     </template>
                                 </div>
-                                <p v-if="tieneDeuda" class="bank-commission-note">La comisi&oacute;n no est&aacute; incluida en la deuda.</p>
                             </div>
                             <div class="col-12 text-center">
                                 <span class="text-base">{{ datos.tipo_descuento }}</span>
@@ -214,7 +213,6 @@
                                         </div>
                                     </template>
                                 </div>
-                                <p v-if="tieneDeuda" class="bank-commission-note">La comisi&oacute;n no est&aacute; incluida en la deuda.</p>
                             </div>
                             <div class="col-12 text-center">
                                 <span class="text-base">{{ datos.tipo_descuento }}</span>
@@ -662,12 +660,6 @@ export default {
     font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
-}
-
-.bank-commission-note {
-    margin: 0.75rem 0 0;
-    color: #78716c;
-    font-size: 0.78rem;
 }
 
 @media (max-width: 576px) {
