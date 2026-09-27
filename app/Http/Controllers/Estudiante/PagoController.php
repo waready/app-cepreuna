@@ -129,27 +129,16 @@ class PagoController extends Controller
             return collect();
         }
 
-        $saldoPagado = (float) InscripcionPago::where('inscripciones_id', $inscripcion->id)
-            ->where('concepto_pagos_id', '!=', '3')
-            ->sum('monto');
-        $saldoMora = (float) InscripcionPago::where([
-            ['inscripciones_id', $inscripcion->id],
-            ['concepto_pagos_id', '3']
-        ])->sum('monto');
         $tarifario = collect();
 
         for ($nroCuota = 0; $nroCuota <= 4; $nroCuota++) {
             $monto = (float) ($nroCuota === 0 ? $tarifaInscripcion->importe : $tarifaMensual->importe);
-            $pagado = min($saldoPagado, $monto);
-            $saldoPagado = max(0, $saldoPagado - $pagado);
-            $mora = $nroCuota === 0 ? 0 : min($saldoMora, 30);
-            $saldoMora = max(0, $saldoMora - $mora);
 
             $tarifario->push((object) [
                 'periodos_id' => $periodo->id,
                 'monto' => number_format($monto, 2, '.', ''),
-                'pagado' => number_format($pagado, 2, '.', ''),
-                'mora' => number_format($mora, 2, '.', ''),
+                'pagado' => '0.00',
+                'mora' => '0.00',
                 'nro_cuota' => $nroCuota,
                 'modalidad' => $inscripcion->modalidad,
                 'tipo_estudiante' => $inscripcion->tipo_estudiante,
@@ -157,12 +146,141 @@ class PagoController extends Controller
             ]);
         }
 
-        if ($saldoPagado > 0 && $tarifario->isNotEmpty()) {
-            $ultimaTarifa = $tarifario->last();
-            $ultimaTarifa->pagado = number_format((float) $ultimaTarifa->pagado + $saldoPagado, 2, '.', '');
-        }
+        $this->reconstruirTarifarioDesdePagos($tarifario, $inscripcion, $periodo);
 
         return $tarifario;
+    }
+
+    protected function reconstruirTarifarioDesdePagos($tarifario, Inscripciones $inscripcion, Periodo $periodo): void
+    {
+        if ($tarifario->isEmpty()) {
+            return;
+        }
+
+        $fines = CronogramaPago::where('periodos_id', $periodo->id)
+            ->pluck('fin', 'nro_cuota')
+            ->all();
+        $movimientos = DB::table('inscripcion_pagos as ip')
+            ->leftJoin('pagos as p', 'p.id', '=', 'ip.pagos_id')
+            ->where('ip.inscripciones_id', $inscripcion->id)
+            ->orderByRaw('COALESCE(p.fecha, DATE(ip.created_at))')
+            ->orderBy('ip.id')
+            ->get([
+                'ip.id',
+                'ip.pagos_id',
+                'ip.concepto_pagos_id',
+                'ip.monto',
+                'ip.created_at',
+                'p.fecha',
+            ]);
+        $eventos = [];
+
+        foreach ($movimientos as $movimiento) {
+            $key = $movimiento->pagos_id
+                ? 'pago-'.$movimiento->pagos_id
+                : 'movimiento-'.$movimiento->id;
+
+            if (! isset($eventos[$key])) {
+                $eventos[$key] = [
+                    'orden' => (int) $movimiento->id,
+                    'fecha' => $movimiento->fecha ?: substr((string) $movimiento->created_at, 0, 10),
+                    'principal' => 0.0,
+                    'mora' => 0.0,
+                ];
+            }
+
+            if ((int) $movimiento->concepto_pagos_id === 3) {
+                $eventos[$key]['mora'] += (float) $movimiento->monto;
+            } else {
+                $eventos[$key]['principal'] += (float) $movimiento->monto;
+            }
+        }
+
+        uasort($eventos, function (array $a, array $b): int {
+            return [$a['fecha'], $a['orden']] <=> [$b['fecha'], $b['orden']];
+        });
+
+        foreach ($eventos as $evento) {
+            $moraExplicita = (float) $evento['mora'];
+
+            if ($moraExplicita > 0) {
+                $this->aplicarMoraAlTarifario($tarifario, $moraExplicita, $evento['fecha'], $fines);
+            }
+
+            $this->aplicarPrincipalAlTarifario(
+                $tarifario,
+                (float) $evento['principal'],
+                $evento['fecha'],
+                $fines,
+                $moraExplicita <= 0
+            );
+        }
+
+        foreach ($tarifario as $tarifa) {
+            $tarifa->pagado = number_format((float) $tarifa->pagado, 2, '.', '');
+            $tarifa->mora = number_format((float) $tarifa->mora, 2, '.', '');
+        }
+    }
+
+    protected function aplicarMoraAlTarifario($tarifario, float $monto, ?string $fecha, array $fines): void
+    {
+        foreach ($tarifario as $tarifa) {
+            if ($monto <= 0) {
+                break;
+            }
+
+            $nroCuota = (int) $tarifa->nro_cuota;
+
+            if ($nroCuota === 0 || ! $this->pagoFueraDeFecha($fecha, $fines[$nroCuota] ?? null)) {
+                continue;
+            }
+
+            $pendiente = max(0, 30 - (float) $tarifa->mora);
+            $aplicado = min($monto, $pendiente);
+            $tarifa->mora = (float) $tarifa->mora + $aplicado;
+            $monto -= $aplicado;
+        }
+    }
+
+    protected function aplicarPrincipalAlTarifario($tarifario, float $monto, ?string $fecha, array $fines, bool $inferirMora): void
+    {
+        foreach ($tarifario as $tarifa) {
+            if ($monto <= 0) {
+                break;
+            }
+
+            $nroCuota = (int) $tarifa->nro_cuota;
+            $pendiente = max(0, (float) $tarifa->monto - (float) $tarifa->pagado);
+
+            if ($pendiente <= 0) {
+                continue;
+            }
+
+            if ($inferirMora
+                && $nroCuota > 0
+                && $this->pagoFueraDeFecha($fecha, $fines[$nroCuota] ?? null)) {
+                $moraPendiente = max(0, 30 - (float) $tarifa->mora);
+                $moraAplicada = min($monto, $moraPendiente);
+                $tarifa->mora = (float) $tarifa->mora + $moraAplicada;
+                $monto -= $moraAplicada;
+            }
+
+            $aplicado = min($monto, $pendiente);
+            $tarifa->pagado = (float) $tarifa->pagado + $aplicado;
+            $monto -= $aplicado;
+        }
+
+        if ($monto > 0 && $tarifario->isNotEmpty()) {
+            $ultimaTarifa = $tarifario->last();
+            $ultimaTarifa->pagado = (float) $ultimaTarifa->pagado + $monto;
+        }
+    }
+
+    protected function pagoFueraDeFecha(?string $fechaPago, ?string $fechaFin): bool
+    {
+        return $fechaPago
+            && $fechaFin
+            && strtotime($fechaPago) > strtotime($fechaFin);
     }
 
 
