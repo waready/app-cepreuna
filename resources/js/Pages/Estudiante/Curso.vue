@@ -85,7 +85,7 @@
             <form @submit.prevent="" action="" autocomplete="off">
                 <div class="grid">
                     <div>
-                        <p style="text-align: justify;">Estimado estudiante se solicita responder a cada una de las preguntas propuestas a continuación para conocer el nivel de desempeño de los docentes que han dictado clases en el presente ciclo 2025 – I, agradecemos anticipadamente su gentil participación.</p>
+                        <p style="text-align: justify;">Estimado estudiante, responda cada criterio para conocer el nivel de desempeño del docente durante el período actual. Agradecemos anticipadamente su participación.</p>
                     </div>
                     <div class="col-3 pb-0">
                         <p class="m-0 font-bold">Docente:</p>
@@ -157,7 +157,7 @@
             </form>
             <template #footer>
                 <Button label="Cancelar" icon="pi pi-times" class="p-button-secondary" @click="calificacionDialog = false" />
-                <Button label="Guardar" icon="pi pi-check" class="p-button-success" :loading="saveLoading" @click="GuardarCalificacion" />
+                <Button label="Guardar" icon="pi pi-check" class="p-button-success" :loading="saveLoading" :disabled="saveLoading || criterios.length === 0" @click="GuardarCalificacion" />
             </template>
         </Dialog>
         <!-- <pre>{{ JSON.stringify(inscripcion, null, 2) }}</pre> -->
@@ -168,10 +168,7 @@
 import AppLayout from "@/Layouts/AppLayout";
 import { useToast } from "primevue/usetoast";
 
-import { Inertia } from "@inertiajs/inertia";
-import { useForm } from "@inertiajs/inertia-vue3";
-
-import { ref, onMounted, watch, toRefs } from "vue";
+import { ref, onMounted, toRefs } from "vue";
 import axios from "axios";
 import RadioImage from "../../components/RadioImage.vue";
 
@@ -188,7 +185,7 @@ export default {
     setup(props) {
         const title = ref("Cursos");
         const toast = useToast();
-        const { response, calificacion } = toRefs(props);
+        const { calificacion } = toRefs(props);
 
         onMounted(() => {
             getCarga();
@@ -197,22 +194,16 @@ export default {
 
         const cargas = ref([]);
         const getCarga = () => {
-            axios.get(route("estudiantes.get-carga")).then(
-                function (response) {
-                    // console.log(response.data);
-                    cargas.value = response.data.carga;
-                }.bind(this)
-            );
+            return axios.get(route("estudiantes.get-carga")).then((response) => {
+                cargas.value = response.data.carga;
+            });
         };
 
-        const criterios = ref({});
+        const criterios = ref([]);
         const getCriterios = () => {
-            axios.get(route("estudiantes.get-criterios-docente", { modalidad: props.inscripcion?.sedes_id })).then(
-                function (response) {
-                    // this.criterios = response.data.filter(d => d.tipo == "1");
-                    criterios.value = response.data;
-                }.bind(this)
-            );
+            return axios.get(route("estudiantes.get-criterios-docente")).then((response) => {
+                criterios.value = response.data;
+            });
         };
 
         const fields = ref({
@@ -236,16 +227,13 @@ export default {
         const cargaId = ref("");
         const calificacionDialog = ref(false);
         const calificar = (data) => {
-            calificacionDialog.value = true;
-            // console.log(data);
+            preguntas.value = {};
+            errorForm.value = false;
             cargaId.value = data.id;
-            // let datosCalificacion = calificacion.value.find((d) => d.carga_academicas_id == data.id);
-
-            // calificacionId.value = datosCalificacion.id;
             docente.value = data.docente;
             curso.value = data.curso;
             asistencia.value = "";
-            // console.log(datosCalificacion);
+            calificacionDialog.value = true;
         };
 
         const fechaActual = ref(new Date());
@@ -264,72 +252,73 @@ export default {
             const dia = fecha.getDate();
             return `${dia}/${mes}/${año}`;
         };
-        const preguntas = ref([]);
+        const preguntas = ref({});
         const errorForm = ref(false);
         const saveLoading = ref(false);
         const GuardarCalificacion = () => {
-            saveLoading.value = true;
-            let preguntasValidar = [];
-            let cont = 0;
-            preguntas.value.filter((p, i) => {
-                if (p != null) {
-                    preguntasValidar[cont] = parseInt(p);
-                    cont++;
-                }
-            });
+            if (saveLoading.value) return;
+
             errorForm.value = false;
-            // console.log(preguntasValidar);
-            let cantidadCriterios = criterios.value.length;
-            let cantidadRespuestas = preguntasValidar.length;
+            const respuestasCompletas =
+                criterios.value.length > 0 &&
+                criterios.value.every((criterio) => {
+                    const puntaje = Number(preguntas.value[criterio.id]);
+                    return Number.isInteger(puntaje) && puntaje >= 1 && puntaje <= 5;
+                });
 
-            if (cantidadCriterios == cantidadRespuestas) {
-                axios
-                    .post(route("estudiantes.calificar-docente-carga"), {
-                        preguntasValidar: preguntasValidar,
-                        preguntas: preguntas.value,
-                        cargaId: cargaId.value,
-                    })
-                    .then((response) => {
-                        console.log(response.data);
-                        if (response.data.status) {
-                            toast.add({
-                                severity: "success",
-                                summary: "¡Error!",
-                                detail: response.data.message,
-                                life: 5000,
-                            });
-                            calificacionDialog.value = false;
-
-                            Inertia.visit(route("estudiantes.cursos"), {
-                                only: ["calificacion"],
-                            });
-                        } else {
-                            toast.add({
-                                severity: "error",
-                                summary: "¡Error!",
-                                detail: response.data.message,
-                                life: 5000,
-                            });
-                        }
-                    })
-                    .catch((error) => {
-                        saveLoading.value = true;
-                        console.log(error.response.data);
-                        if (error.response.status === 422) {
-                            // this.errors = error.response.data.errors || {};
-                            errorForm.value = true;
-                        }
-                    });
-            } else {
-                saveLoading.value = false;
+            if (!respuestasCompletas) {
                 errorForm.value = true;
                 toast.add({
                     severity: "error",
                     summary: "¡Error!",
-                    detail: "Debe de responder todas las preguntas, recuerde que el puntaje valido es de 1 a 5",
+                    detail: "Debe responder todos los criterios con un puntaje del 1 al 5.",
                     life: 5000,
                 });
+
+                return;
             }
+
+            const respuestas = {};
+            criterios.value.forEach((criterio) => {
+                respuestas[criterio.id] = Number(preguntas.value[criterio.id]);
+            });
+
+            saveLoading.value = true;
+            axios
+                .post(route("estudiantes.calificar-docente-carga"), {
+                    preguntas: respuestas,
+                    cargaId: cargaId.value,
+                })
+                .then((response) => {
+                    if (!response.data.status) {
+                        throw new Error(response.data.message || "No se pudo registrar la calificación.");
+                    }
+
+                    toast.add({
+                        severity: "success",
+                        summary: "¡Listo!",
+                        detail: response.data.message,
+                        life: 5000,
+                    });
+                    calificacionDialog.value = false;
+                    preguntas.value = {};
+                    getCarga();
+                })
+                .catch((error) => {
+                    errorForm.value = true;
+                    const errores = error.response?.data?.errors;
+                    const primerError = errores ? Object.values(errores)[0]?.[0] : null;
+
+                    toast.add({
+                        severity: "error",
+                        summary: "¡Error!",
+                        detail: primerError || error.response?.data?.message || error.message || "No se pudo registrar la calificación.",
+                        life: 5000,
+                    });
+                })
+                .finally(() => {
+                    saveLoading.value = false;
+                });
         };
         return {
             title,

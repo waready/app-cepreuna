@@ -59,7 +59,10 @@ class CursosController extends Controller
             ->orderBy("cursos_id")
             ->get();
 
-        $calificacionesPorCarga = $this->obtenerUltimasCalificacionesActivasPorCarga($cargas->pluck('id')->all());
+        $calificacionesPorCarga = $this->obtenerUltimasCalificacionesActivasPorCarga(
+            $cargas->pluck('id')->all(),
+            $periodo->id
+        );
         $calificacionesRespondidas = [];
 
         if ($calificacionesPorCarga->isNotEmpty()) {
@@ -105,108 +108,175 @@ class CursosController extends Controller
     }
     public function calificacionDocentePorCarga(Request $request)
     {
-
-        //return $request;
         $idEstudiante = Auth::user()->id;
-        // dd($idEstudiante);
-
         $periodo = Periodo::actual();
         $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
         $matricula = Matricula::actualDelEstudiante($idEstudiante, optional($periodo)->id);
 
-        if (!$periodo || !$matricula) {
-            return [
+        if (!$periodo || !$inscripcion || !$matricula) {
+            return response()->json([
                 "message" => 'No se encontró una matrícula activa para el ciclo actual.',
                 "status" => false,
-            ];
+            ], 422);
         }
 
-        // $docenteApto = DocenteApto::find($idDocenteApto);
-        // // $carga = CargaAcademica::with('curso')->select('link')->where('docentes_id',$docenteApto->docentes_id)->get();
-        $calificar = array();
+        $datos = $request->validate([
+            'cargaId' => 'required|integer',
+            'preguntas' => 'required|array|min:1',
+            'preguntas.*' => 'required|integer|between:1,5',
+        ], [
+            'preguntas.required' => 'Debe responder todos los criterios de evaluación.',
+            'preguntas.*.between' => 'Cada calificación debe estar entre 1 y 5.',
+        ]);
+
         $carga = CargaAcademica::with(["curso", "docente", "grupoAula"])
-            ->where("id", $request->input("cargaId"))
+            ->where("id", $datos["cargaId"])
+            ->where("grupo_aulas_id", $matricula->grupo_aulas_id)
             ->where("periodos_id", $periodo->id)
             ->where("estado", "1")
             ->first();
 
         if (!$carga) {
-            return [
-                "message" => 'La carga académica no pertenece al ciclo activo.',
+            return response()->json([
+                "message" => 'El curso no pertenece a la matrícula activa del estudiante.',
                 "status" => false,
-            ];
+            ], 422);
         }
 
-        //return $carga;
-        $calificacionDocente = CalificacionDocente::where([["carga_academicas_id", $request->cargaId],["estado",'1']])
-            ->orderby("asistencia_docentes_id", "desc")
-            ->first();
-        // dd($calificacionDocente);
-        //return $request->preguntas;
+        if (!$carga->docentes_id || (string) optional($carga->grupoAula)->estado_encuesta !== '1') {
+            return response()->json([
+                "message" => 'La calificación docente no está habilitada para este curso.',
+                "status" => false,
+            ], 422);
+        }
 
-        $totalCriterios = count($request->preguntasValidar);
-        DB::beginTransaction();
+        $criterios = $this->obtenerCriteriosEncuesta($inscripcion);
+        $respuestas = collect($datos['preguntas'])->mapWithKeys(function ($puntaje, $criterioId) {
+            return [(int) $criterioId => (int) $puntaje];
+        });
+        $criterioIds = $criterios->pluck('id')->map(function ($criterioId) {
+            return (int) $criterioId;
+        });
+
+        if (
+            $criterios->isEmpty()
+            || $respuestas->count() !== $criterios->count()
+            || $criterioIds->diff($respuestas->keys())->isNotEmpty()
+            || $respuestas->keys()->diff($criterioIds)->isNotEmpty()
+        ) {
+            return response()->json([
+                "message" => 'Debe responder todos los criterios de evaluación disponibles.',
+                "status" => false,
+            ], 422);
+        }
+
         try {
+            $resultado = DB::transaction(function () use (
+                $carga,
+                $criterios,
+                $idEstudiante,
+                $inscripcion,
+                $matricula,
+                $periodo,
+                $respuestas
+            ) {
+                // Serializa los envíos de una misma carga para evitar duplicados por doble clic.
+                DB::table('carga_academicas')
+                    ->where('id', $carga->id)
+                    ->lockForUpdate()
+                    ->first();
 
-            if (!isset($calificacionDocente)) {
-                // return "entro";
-                $calificacionDocente = new CalificacionDocente;
-                $calificacionDocente->participantes = 0;
-                $calificacionDocente->docentes_id = $carga->docentes_id;
-                $calificacionDocente->carga_academicas_id = $carga->id;
-                $calificacionDocente->asistencia_docentes_id = $carga->asistenciaDocente()->max('id');
-                if($inscripcion){
-                    if($inscripcion->modalidad == '1'){ //virtual
-                        $calificacionDocente->modalidad = '1';  //virtual
-                    }elseif($inscripcion->modalidad == '2'){ //preasensial
-                        $calificacionDocente->modalidad = '0';  //presensial
-                    }
-                }
-                $calificacionDocente->save();
-            }else {
-                $calificacionDocente->docentes_id = $carga->docentes_id;
-            
-                if($inscripcion){
-                    if($inscripcion->modalidad == '1'){ //virtual
-                        $calificacionDocente->modalidad = '1'; //virtual
-                    }elseif($inscripcion->modalidad == '2'){ //preasensial
-                        $calificacionDocente->modalidad = '0'; //presensial
-                    }
-                }
-                $calificacionDocente->save();
-            }
-    
-            foreach ($request->preguntas as $key => $value) {
-                if (!empty($value)) {
+                $calificacionRespondida = DB::table('calificacion_docentes as cd')
+                    ->join('calificacion_docente_detalles as cdd', 'cdd.calificacion_docentes_id', 'cd.id')
+                    ->where('cd.carga_academicas_id', $carga->id)
+                    ->where('cd.estado', '1')
+                    ->where('cdd.estudiantes_id', $idEstudiante)
+                    ->where(function ($query) use ($periodo) {
+                        $query->where('cd.periodos_id', $periodo->id)
+                            ->orWhereNull('cd.periodos_id');
+                    })
+                    ->select('cd.id')
+                    ->first();
 
+                if ($calificacionRespondida) {
+                    return [
+                        'message' => 'La calificación de este docente ya fue registrada.',
+                        'status' => true,
+                        'calificacion' => $calificacionRespondida->id,
+                        'already_registered' => true,
+                    ];
+                }
+
+                $calificacionDocente = CalificacionDocente::where('carga_academicas_id', $carga->id)
+                    ->where('estado', '1')
+                    ->where(function ($query) use ($periodo) {
+                        $query->where('periodos_id', $periodo->id)
+                            ->orWhereNull('periodos_id');
+                    })
+                    ->orderByDesc('id')
+                    ->lockForUpdate()
+                    ->first();
+
+                if (!$calificacionDocente) {
+                    $calificacionDocente = new CalificacionDocente;
+                    $calificacionDocente->participantes = 0;
+                    $calificacionDocente->carga_academicas_id = $carga->id;
+                    $calificacionDocente->asistencia_docentes_id = $carga->asistenciaDocente()->max('id');
+                    $calificacionDocente->estado = '1';
+                }
+
+                $calificacionDocente->periodos_id = $periodo->id;
+                $calificacionDocente->grupo_aulas_id = $matricula->grupo_aulas_id;
+                $calificacionDocente->docentes_id = $carga->docentes_id;
+                $calificacionDocente->modalidad = $this->normalizarModalidadEncuesta($inscripcion->modalidad);
+                $calificacionDocente->save();
+
+                foreach ($criterios as $criterio) {
                     $calificacionDetalle = new CalificacionDocenteDetalle;
-                    $calificacionDetalle->puntaje = $value;
-                    $calificacionDetalle->criterios_id = $key;
+                    $calificacionDetalle->periodos_id = $periodo->id;
+                    $calificacionDetalle->puntaje = $respuestas->get((int) $criterio->id);
+                    $calificacionDetalle->criterios_id = $criterio->id;
                     $calificacionDetalle->estudiantes_id = $idEstudiante;
                     $calificacionDetalle->calificacion_docentes_id = $calificacionDocente->id;
                     $calificacionDetalle->save();
                 }
-            }
 
-            $totalPuntaje = CalificacionDocenteDetalle::where("calificacion_docentes_id", $calificacionDocente->id)->sum("puntaje");
-            $calificacionDocente->participantes = $calificacionDocente->participantes + 1;
-            $calificacionDocente->promedio = $totalPuntaje / ($calificacionDocente->participantes * $totalCriterios);
-            $calificacionDocente->puntaje_total = $totalPuntaje / $calificacionDocente->participantes;
-            $calificacionDocente->observacion = 0;
-            $calificacionDocente->save();
+                $detalles = CalificacionDocenteDetalle::where(
+                    'calificacion_docentes_id',
+                    $calificacionDocente->id
+                );
+                $totalPuntaje = (clone $detalles)->sum('puntaje');
+                $totalRespuestas = (clone $detalles)->count();
+                $participantes = (clone $detalles)
+                    ->distinct('estudiantes_id')
+                    ->count('estudiantes_id');
 
-            DB::commit();
-            $response["message"] = 'Registro guardado correctamente';
-            $response["status"] = true;
-            $response["calificacion"] = $calificacionDocente->id;
-        } catch (\Exception $e) {
-            DB::rollback();
-            $response["message"] =  'Error al guardar registro, intentelo nuevamante.';
-            $response["error"]  = $e; 
-            $response["status"] =  false;
+                $calificacionDocente->participantes = $participantes;
+                $calificacionDocente->promedio = $totalRespuestas > 0
+                    ? $totalPuntaje / $totalRespuestas
+                    : 0;
+                $calificacionDocente->puntaje_total = $participantes > 0
+                    ? $totalPuntaje / $participantes
+                    : 0;
+                $calificacionDocente->observacion = 0;
+                $calificacionDocente->save();
+
+                return [
+                    'message' => 'Calificación registrada correctamente.',
+                    'status' => true,
+                    'calificacion' => $calificacionDocente->id,
+                ];
+            });
+
+            return response()->json($resultado);
+        } catch (\Throwable $e) {
+            report($e);
+
+            return response()->json([
+                "message" => 'No se pudo registrar la calificación. Inténtelo nuevamente.',
+                "status" => false,
+            ], 500);
         }
-
-        return $response;
     }
 
     public function getCarga()
@@ -245,6 +315,10 @@ class CursosController extends Controller
                     ->where('cdd.estudiantes_id', $idEstudiante)
                     ->where('cd.estado', '1')
                     ->whereIn('cd.carga_academicas_id', $cargasConEncuestaHabilitada)
+                    ->where(function ($query) use ($periodo) {
+                        $query->where('cd.periodos_id', $periodo->id)
+                            ->orWhereNull('cd.periodos_id');
+                    })
                     ->distinct()
                     ->pluck('cd.carga_academicas_id')
                     ->all(),
@@ -365,18 +439,17 @@ class CursosController extends Controller
 
         return response()->json($cuadernillo);
     }
-    public function getCriteriosDocente(Request $request)
+    public function getCriteriosDocente()
     {
-        //return $request->modalidad;
-        if ($request->modalidad == "1") {
-            $modalidad = "1";
-        } else {
-            $modalidad = "0";
+        $idEstudiante = Auth::user()->id;
+        $periodo = Periodo::actual();
+        $inscripcion = Inscripciones::actualDelEstudiante($idEstudiante, optional($periodo)->id);
+
+        if (!$periodo || !$inscripcion) {
+            return response()->json([]);
         }
 
-        $response  = Criterio::where([["estado", "1"], ["tipo", "1"], ["modalidad", $modalidad]])->get();
-
-        return $response;
+        return response()->json($this->obtenerCriteriosEncuesta($inscripcion));
     }
     public function CalificarDocente(Request $request, $id)
     {
@@ -518,7 +591,7 @@ class CursosController extends Controller
             ->keyBy('cursos_id');
     }
 
-    private function obtenerUltimasCalificacionesActivasPorCarga(array $cargaIds)
+    private function obtenerUltimasCalificacionesActivasPorCarga(array $cargaIds, $periodoId = null)
     {
         if (empty($cargaIds)) {
             return collect();
@@ -526,6 +599,12 @@ class CursosController extends Controller
 
         $ultimasCalificacionesIds = CalificacionDocente::where('estado', '1')
             ->whereIn('carga_academicas_id', $cargaIds)
+            ->when($periodoId, function ($query) use ($periodoId) {
+                $query->where(function ($periodoQuery) use ($periodoId) {
+                    $periodoQuery->where('periodos_id', $periodoId)
+                        ->orWhereNull('periodos_id');
+                });
+            })
             ->selectRaw('MAX(id) as id')
             ->groupBy('carga_academicas_id')
             ->pluck('id')
@@ -539,5 +618,40 @@ class CursosController extends Controller
             ->whereIn('id', $ultimasCalificacionesIds)
             ->get()
             ->keyBy('carga_academicas_id');
+    }
+
+    private function obtenerCriteriosEncuesta($inscripcion)
+    {
+        if (!$inscripcion) {
+            return collect();
+        }
+
+        $consultaBase = Criterio::where('estado', '1')
+            ->where('tipo', '1')
+            ->orderBy('id');
+        $criterios = (clone $consultaBase)
+            ->where('modalidad', $this->normalizarModalidadEncuesta($inscripcion->modalidad))
+            ->get();
+
+        // Conserva compatibilidad con criterios antiguos que no separaban modalidad.
+        if ($criterios->isEmpty()) {
+            $criterios = (clone $consultaBase)
+                ->where(function ($query) {
+                    $query->whereNull('modalidad')
+                        ->orWhere('modalidad', '');
+                })
+                ->get();
+        }
+
+        if ($criterios->isEmpty()) {
+            $criterios = $consultaBase->get();
+        }
+
+        return $criterios;
+    }
+
+    private function normalizarModalidadEncuesta($modalidad)
+    {
+        return (string) $modalidad === '1' ? '1' : '0';
     }
 }
