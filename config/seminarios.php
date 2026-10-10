@@ -39,7 +39,10 @@ return [
             'nombre' => 'Quechua',
             'color' => '#b45309',
             'semanas' => [
-                1 => ['video' => 'https://youtu.be/qvtQP3ycpEM'],
+                1 => [
+                    'video' => 'https://youtu.be/qvtQP3ycpEM',
+                    'pdf' => 'https://drive.google.com/file/d/1nXMOvpAOEe0T7m7XusDhagcnYrCqVsD1/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -47,7 +50,10 @@ return [
             'nombre' => 'Aimara',
             'color' => '#15803d',
             'semanas' => [
-                1 => ['video' => 'https://youtu.be/fVXBuxweMZA'],
+                1 => [
+                    'video' => 'https://youtu.be/fVXBuxweMZA',
+                    'pdf' => 'https://drive.google.com/file/d/1q8aCLcK7WNQpvlUAJxpCQwTvYQzh7SoL/view?usp=sharing',
+                ],
             ],
         ],
 
