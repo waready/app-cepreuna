@@ -226,6 +226,14 @@ export default {
                     sizeIcon: "18px",
                     permission: "panel estudiante",
                 },
+                {
+                    label: "Seminarios",
+                    path: "seminarios",
+                    icon: "pi pi-fw pi-video",
+                    to: "estudiantes.seminarios",
+                    sizeIcon: "18px",
+                    permission: "panel estudiante",
+                },
 
                 // ----------panel docente----------
                 // **************************************
