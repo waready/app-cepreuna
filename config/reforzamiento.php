@@ -40,38 +40,48 @@ return [
             'nombre' => 'Biología y Anatomía',
             'color' => '#15803d',
             'semanas' => [
-                // 1 => ['video' => 'https://youtu.be/...'],
+                1 => ['video' => 'https://youtu.be/YIoA3UW8frQ'],
             ],
         ],
 
         'quimica' => [
             'nombre' => 'Química',
             'color' => '#7e22ce',
-            'semanas' => [],
+            'semanas' => [
+                1 => ['video' => 'https://youtu.be/ZWRXTk9429c'],
+            ],
         ],
 
         'fisica' => [
             'nombre' => 'Física',
             'color' => '#2563eb',
-            'semanas' => [],
+            'semanas' => [
+                1 => ['video' => 'https://youtu.be/FbgzYP_uK8g'],
+            ],
         ],
 
         'educacion-civica' => [
             'nombre' => 'Educación Cívica',
             'color' => '#b45309',
-            'semanas' => [],
+            'semanas' => [
+                1 => ['video' => 'https://youtu.be/xSUXITw1oe8'],
+            ],
         ],
 
         'economia' => [
             'nombre' => 'Economía',
             'color' => '#0f766e',
-            'semanas' => [],
+            'semanas' => [
+                1 => ['video' => 'https://youtu.be/oeQW95uZ6Y8'],
+            ],
         ],
 
         'historia-geografia' => [
             'nombre' => 'Historia y Geografía',
             'color' => '#b91c1c',
-            'semanas' => [],
+            'semanas' => [
+                1 => ['video' => 'https://youtu.be/lI_rLADs2TE'],
+            ],
         ],
 
     ],
