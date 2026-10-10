@@ -36,7 +36,7 @@ use App\Http\Controllers\Estudiante\PagoController as PagoEstudiante;
 use App\Http\Controllers\Estudiante\PagoRegistroController as PagoRegistroEstudiante;
 use App\Http\Controllers\Estudiante\TestController as TestEstudiante;
 use App\Http\Controllers\Estudiante\CursosController as CursoEstudiante;
-use App\Http\Controllers\Estudiante\SeminarioController as SeminarioEstudiante;
+use App\Http\Controllers\Estudiante\VideosSemanalesController as VideosSemanalesEstudiante;
 use App\Http\Controllers\LibroReclamaciones\LibroReclamacionesController;
 
 //Libro de Reclamaciones
@@ -258,8 +258,9 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                         // paogos
                         Route::get('/pagos', [PagoEstudiante::class , 'index'])->name('estudiantes.pagos');
                         Route::get('/test', [TestEstudiante::class , 'index'])->name('estudiantes.test');
-                        // seminarios de idiomas
-                        Route::get('/seminarios', [SeminarioEstudiante::class , 'index'])->name('estudiantes.seminarios');
+                        // videos por semana: idiomas y reforzamiento
+                        Route::get('/seminarios', [VideosSemanalesEstudiante::class , 'seminarios'])->name('estudiantes.seminarios');
+                        Route::get('/reforzamiento', [VideosSemanalesEstudiante::class , 'reforzamiento'])->name('estudiantes.reforzamiento');
                         Route::post('/validar-test', [TestEstudiante::class , 'store'])->name('estudiantes.test.validar');
                         Route::get('/constancia-test/{id}', [TestEstudiante::class , 'pdfConstancia'])->name('estudiantes.test.constancia');
                         Route::post('/validar-pago-cuota', [PagoRegistroEstudiante::class , 'validar'])->name('estudiantes.validar-pago');

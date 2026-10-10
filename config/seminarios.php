@@ -10,7 +10,7 @@ return [
     | El modulo no se administra desde el sistema todavia: el contenido se
     | declara aqui y basta editar este archivo para publicar una semana nueva.
     | Las semanas sin datos aparecen como "Proximamente", asi que se pueden
-    | dejar las ocho desde el principio.
+    | dejar todas declaradas desde el principio.
     |
     | En cada semana:
     |   video  enlace de YouTube (o cualquier URL). Opcional.
@@ -19,13 +19,24 @@ return [
     |          de documentos (EXTERNALURLIMAGE), igual que los cuadernillos de
     |          curso, que se piden a '/storage/documentos/...'.
     |
+    | Un grupo puede llevar 'areas' => [1, 2] para mostrarse solo a esas areas.
+    | Sin esa clave lo ve todo el mundo, que es lo que queremos con los idiomas.
+    |
+    | Lo lee VideosSemanalesController, compartido con [reforzamiento.php].
+    |
     */
+
+    'titulo' => 'Seminarios de Idiomas',
+
+    'descripcion' => 'Cada semana incluye el video de la sesion y su cuadernillo.',
+
+    'con_cuadernillo' => true,
 
     'total_semanas' => 8,
 
     'ruta_pdf' => 'storage/documentos/seminarios',
 
-    'idiomas' => [
+    'grupos' => [
 
         'ingles' => [
             'nombre' => 'Inglés',

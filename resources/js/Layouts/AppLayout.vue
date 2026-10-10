@@ -234,6 +234,14 @@ export default {
                     sizeIcon: "18px",
                     permission: "panel estudiante",
                 },
+                {
+                    label: "Reforzamiento",
+                    path: "reforzamiento",
+                    icon: "pi pi-fw pi-play",
+                    to: "estudiantes.reforzamiento",
+                    sizeIcon: "18px",
+                    permission: "panel estudiante",
+                },
 
                 // ----------panel docente----------
                 // **************************************
