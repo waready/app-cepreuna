@@ -59,15 +59,39 @@
                     >
                         <span class="word-icon"><i class="pi pi-file"></i></span>
                         <div>
-                            <strong>2 preguntas por entrega</strong>
-                            <span>Un solo archivo Word editable y digitado</span>
+                            <strong>2 preguntas de 2 autores diferentes</strong>
+                            <span>Descarga el formato Word editable</span>
                         </div>
                     </a>
+
+                    <div class="mandatory-notice" role="alert">
+                        <div class="mandatory-notice-title">
+                            <i class="pi pi-exclamation-triangle"></i>
+                            <span>
+                                <strong>OBLIGATORIO ANTES DE ENVIAR</strong>
+                                <small>Si no cumples estas reglas, la entrega sera observada.</small>
+                            </span>
+                        </div>
+                        <div class="mandatory-notice-rules">
+                            <div>
+                                <span>1</span>
+                                <strong>Sube 2 preguntas de 2 autores diferentes.</strong>
+                            </div>
+                            <div>
+                                <span>2</span>
+                                <strong>No subas imagenes, fotos ni capturas.</strong>
+                            </div>
+                            <div>
+                                <span>3</span>
+                                <strong>Digitaliza o transcribe los ejercicios, graficos y ejemplos siempre que sea posible.</strong>
+                            </div>
+                        </div>
+                    </div>
 
                     <ol class="requirements-list">
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Incluye exactamente <strong>2 preguntas</strong> del curso y nivel indicados.</span>
+                            <span>Incluye exactamente <strong>2 preguntas de 2 autores diferentes</strong> del curso y nivel indicados.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
@@ -201,8 +225,8 @@
                                 :binary="true"
                             />
                             <span>
-                                Confirmo que el Word sigue el formato y contiene exactamente
-                                <strong>2 preguntas digitadas, sin imagenes ni capturas</strong>.
+                                Confirmo que el Word contiene <strong>2 preguntas de 2 autores diferentes</strong>,
+                                digitadas y <strong>sin imagenes, fotos ni capturas</strong>.
                             </span>
                         </label>
                         <small v-if="form.errors.confirmacion_dos_preguntas" class="p-error confirmation-error">
@@ -720,6 +744,76 @@ export default {
 .delivery-meta span {
     color: var(--muted);
     font-size: 0.8rem;
+}
+
+.mandatory-notice {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 0.9rem;
+    padding: 1rem;
+    border: 2px solid #e65c25;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #fff1e8 0%, #fff9f4 100%);
+    color: #7b2d12;
+    box-shadow: 0 10px 24px rgba(196, 67, 20, 0.13);
+}
+
+.mandatory-notice-title {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.mandatory-notice-title > i {
+    font-size: 1.45rem;
+    color: #d94816;
+}
+
+.mandatory-notice-title > span {
+    display: grid;
+    gap: 0.12rem;
+}
+
+.mandatory-notice-title strong {
+    color: #b7370b;
+    font-size: 0.82rem;
+    letter-spacing: 0.045em;
+}
+
+.mandatory-notice-title small {
+    color: #8b4a31;
+    font-weight: 700;
+}
+
+.mandatory-notice-rules {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.mandatory-notice-rules > div {
+    display: grid;
+    grid-template-columns: 25px 1fr;
+    align-items: start;
+    gap: 0.55rem;
+    line-height: 1.35;
+}
+
+.mandatory-notice-rules > div > span {
+    display: grid;
+    width: 24px;
+    height: 24px;
+    place-items: center;
+    border-radius: 50%;
+    background: #d94816;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 900;
+}
+
+.mandatory-notice-rules strong {
+    padding-top: 0.12rem;
+    font-size: 0.86rem;
 }
 
 .requirements-list {
