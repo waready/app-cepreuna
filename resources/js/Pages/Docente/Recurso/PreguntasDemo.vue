@@ -20,7 +20,7 @@
                         class="template-link"
                         download
                     >
-                        <i class="pi pi-file-word"></i>
+                        <i class="pi pi-file"></i>
                         Descargar formato Word
                     </a>
                 </div>
@@ -52,13 +52,17 @@
                         </div>
                     </div>
 
-                    <div class="document-preview">
-                        <span class="word-icon"><i class="pi pi-file-word"></i></span>
+                    <a
+                        :href="route('docentes.recursos.preguntas-demo.plantilla')"
+                        class="document-preview"
+                        download
+                    >
+                        <span class="word-icon"><i class="pi pi-file"></i></span>
                         <div>
                             <strong>2 preguntas por entrega</strong>
                             <span>Un solo archivo Word editable y digitado</span>
                         </div>
-                    </div>
+                    </a>
 
                     <ol class="requirements-list">
                         <li>
@@ -88,7 +92,7 @@
                         class="format-reminder"
                         download
                     >
-                        <i class="pi pi-file-word"></i>
+                        <i class="pi pi-file"></i>
                         <span>
                             <strong>Usa el nuevo formato oficial</strong>
                             <small>Descarga y completa el formato directamente en Word.</small>
@@ -675,6 +679,20 @@ export default {
     padding: 0.9rem;
     border-radius: 12px;
     background: #fff7f1;
+    color: var(--ink);
+    text-decoration: none;
+    transition: background-color 160ms ease, box-shadow 160ms ease;
+}
+
+.document-preview:hover {
+    background: #ffede1;
+    box-shadow: 0 8px 20px rgba(217, 84, 30, 0.1);
+    color: var(--ink);
+}
+
+.document-preview:focus-visible {
+    outline: 3px solid rgba(35, 103, 177, 0.28);
+    outline-offset: 2px;
 }
 
 .word-icon {
@@ -697,7 +715,7 @@ export default {
     min-width: 0;
 }
 
-.document-preview span,
+.document-preview div span,
 .file-copy small,
 .delivery-meta span {
     color: var(--muted);
