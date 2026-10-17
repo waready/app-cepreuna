@@ -6,8 +6,8 @@
                     <span class="hero-kicker">Banco de preguntas</span>
                     <h1>Entrega tus preguntas en Word</h1>
                     <p>
-                        Presenta un documento editable por curso y semana. El equipo revisor
-                        validara el contenido antes de aprobarlo.
+                        Presenta un documento Word editable, con todo el contenido digitado por
+                        curso y semana. El equipo revisor validara el contenido antes de aprobarlo.
                     </p>
                 </div>
                 <div class="hero-actions">
@@ -55,7 +55,7 @@
                         <span class="word-icon"><i class="pi pi-file"></i></span>
                         <div>
                             <strong>2 preguntas por entrega</strong>
-                            <span>Un solo archivo Word editable</span>
+                            <span>Un solo archivo Word editable y digitado</span>
                         </div>
                     </div>
 
@@ -78,7 +78,7 @@
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>En Matematica, Fisica o Quimica puedes insertar una solucion fotografiada si es legible.</span>
+                            <span>Digita en Word todas las preguntas, alternativas, formulas y soluciones. No se aceptan fotografias del contenido.</span>
                         </li>
                     </ol>
 
@@ -88,8 +88,8 @@
                     >
                         <i class="pi pi-file-word"></i>
                         <span>
-                            <strong>Usa el modelo oficial</strong>
-                            <small>Abre, edita y conserva su estructura.</small>
+                            <strong>Usa el nuevo formato oficial</strong>
+                            <small>Completa todo directamente en Word, sin fotos.</small>
                         </span>
                         <i class="pi pi-arrow-down"></i>
                     </a>
@@ -181,7 +181,7 @@
                                 </span>
                                 <span v-else class="file-copy">
                                     <strong>Selecciona tu archivo .docx</strong>
-                                    <small>Documento editable de hasta 10 MB</small>
+                                    <small>Documento digitado en Word, de hasta 10 MB</small>
                                 </span>
                                 <span class="browse-label">Examinar</span>
                             </label>
@@ -196,7 +196,7 @@
                             />
                             <span>
                                 Confirmo que el Word sigue el formato y contiene exactamente
-                                <strong>2 preguntas</strong>.
+                                <strong>2 preguntas digitadas y sin fotografias</strong>.
                             </span>
                         </label>
                         <small v-if="form.errors.confirmacion_dos_preguntas" class="p-error confirmation-error">
