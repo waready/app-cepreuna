@@ -18,8 +18,9 @@
                     <a
                         :href="route('docentes.recursos.preguntas-demo.plantilla')"
                         class="template-link"
+                        download
                     >
-                        <i class="pi pi-download"></i>
+                        <i class="pi pi-file-word"></i>
                         Descargar formato Word
                     </a>
                 </div>
@@ -52,7 +53,7 @@
                     </div>
 
                     <div class="document-preview">
-                        <span class="word-icon"><i class="pi pi-file"></i></span>
+                        <span class="word-icon"><i class="pi pi-file-word"></i></span>
                         <div>
                             <strong>2 preguntas por entrega</strong>
                             <span>Un solo archivo Word editable y digitado</span>
@@ -78,18 +79,19 @@
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Digita en Word todas las preguntas, alternativas, formulas y soluciones. No se aceptan fotografias del contenido.</span>
+                            <span>No subas imagenes ni capturas. Trata de digitalizar o transcribir en Word los ejercicios, graficos y ejemplos siempre que sea posible.</span>
                         </li>
                     </ol>
 
                     <a
                         :href="route('docentes.recursos.preguntas-demo.plantilla')"
                         class="format-reminder"
+                        download
                     >
                         <i class="pi pi-file-word"></i>
                         <span>
                             <strong>Usa el nuevo formato oficial</strong>
-                            <small>Completa todo directamente en Word, sin fotos.</small>
+                            <small>Descarga y completa el formato directamente en Word.</small>
                         </span>
                         <i class="pi pi-arrow-down"></i>
                     </a>
@@ -196,7 +198,7 @@
                             />
                             <span>
                                 Confirmo que el Word sigue el formato y contiene exactamente
-                                <strong>2 preguntas digitadas y sin fotografias</strong>.
+                                <strong>2 preguntas digitadas, sin imagenes ni capturas</strong>.
                             </span>
                         </label>
                         <small v-if="form.errors.confirmacion_dos_preguntas" class="p-error confirmation-error">
