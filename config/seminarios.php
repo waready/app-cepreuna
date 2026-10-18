@@ -42,7 +42,11 @@ return [
             'nombre' => 'Inglés',
             'color' => '#2563eb',
             'semanas' => [
-                1 => ['video' => 'https://youtu.be/FXDVW2SGlaE'],
+                1 => [
+                    'video' => 'https://youtu.be/FXDVW2SGlaE',
+                    'pdf' => 'https://drive.google.com/file/d/13JM95OW-aTOWPbQx84a275x7cfOWY28j/view?usp=sharing',
+                ],
+                2 => ['video' => 'https://youtu.be/x7j1NuxR5Gs'],
             ],
         ],
 
@@ -54,6 +58,7 @@ return [
                     'video' => 'https://youtu.be/qvtQP3ycpEM',
                     'pdf' => 'https://drive.google.com/file/d/1nXMOvpAOEe0T7m7XusDhagcnYrCqVsD1/view?usp=sharing',
                 ],
+                2 => ['video' => 'https://youtu.be/Kb4OnVPFyp4'],
             ],
         ],
 
@@ -64,6 +69,10 @@ return [
                 1 => [
                     'video' => 'https://youtu.be/fVXBuxweMZA',
                     'pdf' => 'https://drive.google.com/file/d/1q8aCLcK7WNQpvlUAJxpCQwTvYQzh7SoL/view?usp=sharing',
+                ],
+                2 => [
+                    'video' => 'https://youtu.be/DVqw_msCXHU',
+                    'pdf' => 'https://drive.google.com/file/d/1XFQifFmJZvpsfr_4zbh5OnAPk75Yfqbj/view?usp=sharing',
                 ],
             ],
         ],

@@ -41,6 +41,7 @@ return [
             'color' => '#15803d',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/YIoA3UW8frQ'],
+                2 => ['video' => 'https://youtu.be/9UebIGciJqg'],
             ],
         ],
 
@@ -49,6 +50,7 @@ return [
             'color' => '#7e22ce',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/ZWRXTk9429c'],
+                2 => ['video' => 'https://youtu.be/3Sucpnv_1gw'],
             ],
         ],
 
@@ -57,6 +59,7 @@ return [
             'color' => '#2563eb',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/FbgzYP_uK8g'],
+                2 => ['video' => 'https://youtu.be/yy9eL5flkIM'],
             ],
         ],
 
@@ -65,6 +68,7 @@ return [
             'color' => '#b45309',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/xSUXITw1oe8'],
+                2 => ['video' => 'https://youtu.be/r2VvX2l41KY'],
             ],
         ],
 
@@ -73,6 +77,7 @@ return [
             'color' => '#0f766e',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/oeQW95uZ6Y8'],
+                2 => ['video' => 'https://youtu.be/Sod4Mt5aVws'],
             ],
         ],
 
@@ -81,6 +86,7 @@ return [
             'color' => '#b91c1c',
             'semanas' => [
                 1 => ['video' => 'https://youtu.be/lI_rLADs2TE'],
+                2 => ['video' => 'https://youtu.be/uvztU8Lk5zQ'],
             ],
         ],
 
