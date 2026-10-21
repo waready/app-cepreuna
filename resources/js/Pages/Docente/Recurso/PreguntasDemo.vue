@@ -83,7 +83,11 @@
                             </div>
                             <div>
                                 <span>3</span>
-                                <strong>Digitaliza o transcribe los ejercicios, graficos y ejemplos siempre que sea posible.</strong>
+                                <strong>Todo debe ser editable en Word. Digitaliza o transcribe ejercicios, graficos y ejemplos.</strong>
+                            </div>
+                            <div>
+                                <span>4</span>
+                                <strong>Plazo de entrega: hasta el miercoles de cada semana.</strong>
                             </div>
                         </div>
                     </div>
@@ -91,23 +95,31 @@
                     <ol class="requirements-list">
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Incluye exactamente <strong>2 preguntas de 2 autores diferentes</strong> del curso y nivel indicados.</span>
+                            <span>Incluye exactamente <strong>2 preguntas de 2 autores diferentes</strong>, segun el nivel sorteado y el temario correspondiente.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Usa cinco alternativas, de <strong>A a E</strong>, y resalta la respuesta correcta.</span>
+                            <span>Redacta cada pregunta en texto editable Word, usa cinco alternativas de <strong>A a E</strong> y resalta la respuesta correcta.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Agrega la justificacion o solucion de cada pregunta.</span>
+                            <span>Agrega la justificacion o solucion. En Matematica, Fisica y Quimica, la solucion tambien debe ser editable y no una foto.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Registra bibliografia con autor, anio, titulo y editorial.</span>
+                            <span>Registra la referencia de cada pregunta con <strong>autor, anio, titulo del libro y editorial</strong>.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Incluye en la guia final el <strong>nombre completo del docente</strong> que elaboro las preguntas.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
                             <span>No subas imagenes ni capturas. Trata de digitalizar o transcribir en Word los ejercicios, graficos y ejemplos siempre que sea posible.</span>
+                        </li>
+                        <li>
+                            <i class="pi pi-check"></i>
+                            <span>Sube el documento <strong>hasta el miercoles de cada semana</strong>.</span>
                         </li>
                     </ol>
 
