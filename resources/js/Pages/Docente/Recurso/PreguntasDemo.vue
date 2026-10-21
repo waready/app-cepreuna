@@ -95,15 +95,15 @@
                     <ol class="requirements-list">
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Incluye exactamente <strong>2 preguntas de 2 autores diferentes</strong>, segun el nivel sorteado y el temario correspondiente.</span>
+                            <span>Respeta el <strong>nivel sorteado</strong> y el temario correspondiente.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Redacta cada pregunta en texto editable Word, usa cinco alternativas de <strong>A a E</strong> y resalta la respuesta correcta.</span>
+                            <span>Usa cinco alternativas de <strong>A a E</strong> y resalta la respuesta correcta.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Agrega la justificacion o solucion. En Matematica, Fisica y Quimica, la solucion tambien debe ser editable y no una foto.</span>
+                            <span>Agrega la <strong>justificacion o solucion completa</strong> de cada pregunta.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
@@ -112,14 +112,6 @@
                         <li>
                             <i class="pi pi-check"></i>
                             <span>Incluye en la guia final el <strong>nombre completo del docente</strong> que elaboro las preguntas.</span>
-                        </li>
-                        <li>
-                            <i class="pi pi-check"></i>
-                            <span>No subas imagenes ni capturas. Trata de digitalizar o transcribir en Word los ejercicios, graficos y ejemplos siempre que sea posible.</span>
-                        </li>
-                        <li>
-                            <i class="pi pi-check"></i>
-                            <span>Sube el documento <strong>hasta el miercoles de cada semana</strong>.</span>
                         </li>
                     </ol>
 
