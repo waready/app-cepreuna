@@ -24,7 +24,7 @@ Cada Word debe conservar la estructura de la plantilla e incluir:
 - Cinco alternativas identificadas de A a E.
 - Respuesta correcta resaltada.
 - Justificacion o solucion de cada pregunta.
-- Bibliografia con autor, anio, titulo y editorial.
+- Bibliografía con autor, año, título y editorial.
 - Imagenes legibles cuando sean necesarias.
 
 La cantidad se confirma en el formulario y se valida manualmente durante la

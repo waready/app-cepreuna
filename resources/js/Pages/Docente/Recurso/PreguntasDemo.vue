@@ -7,7 +7,7 @@
                     <h1>Entrega tus preguntas en Word</h1>
                     <p>
                         Presenta un documento Word editable, con todo el contenido digitado por
-                        curso y semana. El equipo revisor validara el contenido antes de aprobarlo.
+                        curso y semana. El equipo revisor validará el contenido antes de aprobarlo.
                     </p>
                 </div>
                 <div class="hero-actions">
@@ -32,14 +32,14 @@
                 :closable="false"
                 class="module-notice"
             >
-                El envio permanecera bloqueado hasta que el sistema multiciclo instale las
-                tablas del modulo.
+                El envío permanecerá bloqueado hasta que el sistema multiciclo instale las
+                tablas del módulo.
             </Message>
 
             <div v-if="!cursos.length" class="empty-state">
                 <i class="pi pi-book"></i>
                 <h2>No hay cursos disponibles</h2>
-                <p>Aun no tienes cursos con un nivel sorteado en el periodo actual.</p>
+                <p>Aún no tienes cursos con un nivel sorteado en el periodo actual.</p>
             </div>
 
             <div v-else class="workflow-grid">
@@ -59,7 +59,7 @@
                     >
                         <span class="word-icon"><i class="pi pi-file"></i></span>
                         <div>
-                            <strong>2 preguntas de 2 autores diferentes</strong>
+                            <strong>Formato oficial editable</strong>
                             <span>Descarga el formato Word editable</span>
                         </div>
                     </a>
@@ -69,7 +69,7 @@
                             <i class="pi pi-exclamation-triangle"></i>
                             <span>
                                 <strong>OBLIGATORIO ANTES DE ENVIAR</strong>
-                                <small>Si no cumples estas reglas, la entrega sera observada.</small>
+                                <small>Si no cumples estas reglas, la entrega será observada.</small>
                             </span>
                         </div>
                         <div class="mandatory-notice-rules">
@@ -79,15 +79,15 @@
                             </div>
                             <div>
                                 <span>2</span>
-                                <strong>No subas imagenes, fotos ni capturas.</strong>
+                                <strong>No subas imágenes, fotos ni capturas.</strong>
                             </div>
                             <div>
                                 <span>3</span>
-                                <strong>Todo debe ser editable en Word. Digitaliza o transcribe ejercicios, graficos y ejemplos.</strong>
+                                <strong>Todo debe ser editable en Word. Digitaliza o transcribe ejercicios, gráficos y ejemplos.</strong>
                             </div>
                             <div>
                                 <span>4</span>
-                                <strong>Plazo de entrega: hasta el miercoles de cada semana.</strong>
+                                <strong>Plazo de entrega: hasta el miércoles de cada semana.</strong>
                             </div>
                         </div>
                     </div>
@@ -103,15 +103,15 @@
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Agrega la <strong>justificacion o solucion completa</strong> de cada pregunta.</span>
+                            <span>Agrega la <strong>justificación o solución completa</strong> de cada pregunta.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Registra la referencia de cada pregunta con <strong>autor, anio, titulo del libro y editorial</strong>.</span>
+                            <span>Registra la referencia de cada pregunta con <strong>autor, año, título del libro y editorial</strong>.</span>
                         </li>
                         <li>
                             <i class="pi pi-check"></i>
-                            <span>Incluye en la guia final el <strong>nombre completo del docente</strong> que elaboro las preguntas.</span>
+                            <span>Incluye en la guía final el <strong>nombre completo del docente</strong> que elaboró las preguntas.</span>
                         </li>
                     </ol>
 
@@ -190,7 +190,7 @@
                                     class="w-full"
                                     disabled
                                 />
-                                <small class="field-help">Asignado automaticamente por el sorteo del coordinador.</small>
+                                <small class="field-help">Asignado automáticamente por el sorteo del coordinador.</small>
                             </div>
                         </div>
 
@@ -211,7 +211,7 @@
                                 <span class="drop-icon"><i :class="form.archivo ? 'pi pi-check' : 'pi pi-upload'"></i></span>
                                 <span v-if="form.archivo" class="file-copy">
                                     <strong>{{ form.archivo.name }}</strong>
-                                    <small>{{ formatoBytes(form.archivo.size) }} · listo para enviar</small>
+                                    <small>{{ formatoBytes(form.archivo.size) }} - listo para enviar</small>
                                 </span>
                                 <span v-else class="file-copy">
                                     <strong>Selecciona tu archivo .docx</strong>
@@ -228,10 +228,7 @@
                                 v-model="form.confirmacion_dos_preguntas"
                                 :binary="true"
                             />
-                            <span>
-                                Confirmo que el Word contiene <strong>2 preguntas de 2 autores diferentes</strong>,
-                                digitadas y <strong>sin imagenes, fotos ni capturas</strong>.
-                            </span>
+                            <span>Confirmo que revisé y cumplo todas las reglas obligatorias indicadas.</span>
                         </label>
                         <small v-if="form.errors.confirmacion_dos_preguntas" class="p-error confirmation-error">
                             {{ form.errors.confirmacion_dos_preguntas }}
@@ -240,11 +237,11 @@
                         <div class="submit-row">
                             <div>
                                 <i class="pi pi-lock"></i>
-                                El archivo sera privado y solo lo vera el equipo revisor.
+                                El archivo será privado y solo lo verá el equipo revisor.
                             </div>
                             <Button
                                 type="submit"
-                                label="Enviar a revision"
+                                label="Enviar a revisión"
                                 icon="pi pi-send"
                                 class="submit-button"
                                 :loading="form.processing"
@@ -273,7 +270,7 @@
                     <template #empty>
                         <div class="table-empty">
                             <i class="pi pi-inbox"></i>
-                            <span>Todavia no tienes entregas registradas.</span>
+                            <span>Todavía no tienes entregas registradas.</span>
                         </div>
                     </template>
                     <Column field="curso" header="Curso"></Column>
@@ -281,7 +278,7 @@
                         <template #body="slotProps">
                             <div class="delivery-meta">
                                 <strong>Semana {{ slotProps.data.semana }}</strong>
-                                <span>{{ nivelLabel(slotProps.data.nivel) }} · version {{ slotProps.data.version }}</span>
+                                <span>{{ nivelLabel(slotProps.data.nivel) }} - versión {{ slotProps.data.version }}</span>
                             </div>
                         </template>
                     </Column>
@@ -344,9 +341,9 @@
                 <div class="delete-warning">
                     <i class="pi pi-exclamation-triangle"></i>
                     <div>
-                        <strong>Esta accion no se puede deshacer.</strong>
+                        <strong>Esta acción no se puede deshacer.</strong>
                         <p>
-                            Se eliminara la entrega de
+                            Se eliminará la entrega de
                             <b>{{ entregaAEliminar?.curso }}</b>, su Word original y el Word
                             revisado si existe.
                         </p>
@@ -392,7 +389,7 @@ export default {
         const eliminarVisible = ref(false);
         const entregaAEliminar = ref(null);
         const niveles = [
-            { label: "Basico", value: "basico" },
+            { label: "Básico", value: "basico" },
             { label: "Intermedio", value: "intermedio" },
             { label: "Avanzado", value: "avanzado" },
         ];
@@ -448,7 +445,7 @@ export default {
                     toast.add({
                         severity: "success",
                         summary: "Entrega registrada",
-                        detail: "El documento fue enviado para revision.",
+                        detail: "El documento fue enviado para revisión.",
                         life: 3500,
                     });
                 },
@@ -456,7 +453,7 @@ export default {
                     toast.add({
                         severity: "warn",
                         summary: "Revisa la entrega",
-                        detail: "Hay datos que necesitan tu atencion.",
+                        detail: "Hay datos que necesitan tu atención.",
                         life: 3500,
                     });
                 },
@@ -507,7 +504,7 @@ export default {
         };
         const nivelLabel = (nivel) => niveles.find((item) => item.value === nivel)?.label || nivel;
         const estadoLabel = (estado) => ({
-            en_revision: "En revision",
+            en_revision: "En revisión",
             aprobado: "Aprobado",
             observado: "Observado",
             rechazado: "Rechazado",
