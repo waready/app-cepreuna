@@ -1,10 +1,13 @@
-name: Validar aplicacion
+name: Validar y desplegar aplicacion
 
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test-and-build:
@@ -56,3 +59,26 @@ jobs:
         run: |
           npm ci
           npm run production
+
+  deploy-production:
+    name: Desplegar a produccion
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test-and-build
+    runs-on: [self-hosted, linux, x64, app-cepreuna]
+    timeout-minutes: 20
+    concurrency:
+      group: app-cepreuna-production
+      cancel-in-progress: false
+    steps:
+      - name: Descargar commit validado
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Desplegar release atomico
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git push /var/repositories/app-cepreuna.git HEAD:refs/heads/main

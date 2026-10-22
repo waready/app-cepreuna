@@ -45,3 +45,36 @@ git push deploy main
 ```
 
 El hook instala dependencias PHP, limpia y genera caches, cambia el symlink, prueba la URL publica y revierte si la prueba falla. No ejecuta `php artisan migrate`.
+
+## Despliegue automatico con GitHub Actions
+
+El workflow `.github/workflows/ci.yml` despliega automaticamente cada `push` a `main`, pero solo despues de que las pruebas y la compilacion terminen correctamente.
+
+El runner debe instalarse en `10.1.20.59` con estas caracteristicas:
+
+- Sistema: Linux x64.
+- Usuario del servicio: `developer`.
+- Nombre recomendado: `app-cepreuna-prod`.
+- Etiqueta personalizada obligatoria: `app-cepreuna`.
+
+Desde GitHub, abrir `Settings > Actions > Runners > New self-hosted runner`, seleccionar Linux x64 y ejecutar en el servidor los comandos generados. Al configurar el runner, agregar el nombre y la etiqueta:
+
+```bash
+./config.sh \
+  --url https://github.com/waready/app-cepreuna \
+  --token TOKEN_TEMPORAL_DE_GITHUB \
+  --name app-cepreuna-prod \
+  --labels app-cepreuna \
+  --work _work \
+  --unattended
+```
+
+El token es temporal y no debe guardarse en el repositorio. Luego instalar el runner como servicio:
+
+```bash
+sudo ./svc.sh install developer
+sudo ./svc.sh start
+sudo ./svc.sh status
+```
+
+El trabajo de produccion nunca se ejecuta para pull requests. El runner envia el commit validado al repositorio local `/var/repositories/app-cepreuna.git`, que conserva el despliegue atomico, el health check y el rollback existentes.
