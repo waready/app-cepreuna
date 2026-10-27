@@ -46,7 +46,14 @@ return [
                     'video' => 'https://youtu.be/FXDVW2SGlaE',
                     'pdf' => 'https://drive.google.com/file/d/13JM95OW-aTOWPbQx84a275x7cfOWY28j/view?usp=sharing',
                 ],
-                2 => ['video' => 'https://youtu.be/x7j1NuxR5Gs'],
+                2 => [
+                    'video' => 'https://youtu.be/x7j1NuxR5Gs',
+                    'pdf' => 'https://drive.google.com/file/d/16zQfTppplBZwIgR3oAtD1rPN0lsV_08f/view?usp=sharing',
+                ],
+                3 => [
+                    'video' => 'https://youtu.be/I3kw2VOj9fU',
+                    'pdf' => 'https://drive.google.com/file/d/1xewGHWf0GqVAKBOOp6fXYulNw-K9hoGR/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -58,7 +65,14 @@ return [
                     'video' => 'https://youtu.be/qvtQP3ycpEM',
                     'pdf' => 'https://drive.google.com/file/d/1nXMOvpAOEe0T7m7XusDhagcnYrCqVsD1/view?usp=sharing',
                 ],
-                2 => ['video' => 'https://youtu.be/Kb4OnVPFyp4'],
+                2 => [
+                    'video' => 'https://youtu.be/Kb4OnVPFyp4',
+                    'pdf' => 'https://drive.google.com/file/d/1suyCYIuq19U71gq9kkDrH7m1iWVkkZiZ/view?usp=sharing',
+                ],
+                3 => [
+                    'video' => 'https://youtu.be/6l65nE2HCwI',
+                    'pdf' => 'https://drive.google.com/file/d/1r1LFE2cuGZH5ZckwZBdv2oekPSmNg6C0/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -73,6 +87,10 @@ return [
                 2 => [
                     'video' => 'https://youtu.be/DVqw_msCXHU',
                     'pdf' => 'https://drive.google.com/file/d/1XFQifFmJZvpsfr_4zbh5OnAPk75Yfqbj/view?usp=sharing',
+                ],
+                3 => [
+                    'video' => 'https://youtu.be/2ZbzPift4eY',
+                    'pdf' => 'https://drive.google.com/file/d/1En-VP9JlRsVuq8SqKvKjTLFB5ZHTW5fz/view?usp=sharing',
                 ],
             ],
         ],
