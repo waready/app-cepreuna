@@ -29,13 +29,17 @@
                                 <span class="text-500 ml-2">{{ informe.periodo.desde }} al {{ informe.periodo.hasta }}</span>
                             </div>
                             <Tag :class="informe.periodo.habilitado ? 'bg-green-600' : 'bg-gray-500'">
-                                {{ informe.periodo.habilitado ? 'Habilitado' : 'Aún no habilitado' }}
+                                {{ informe.periodo.habilitado ? 'Habilitado' : informe.periodo.sin_horas ? 'Sin horas' : 'Aún no habilitado' }}
                             </Tag>
                         </div>
 
                         <!-- Sin expediente: todavía no se ha generado -->
                         <template v-if="!informe.expediente">
-                            <p class="text-600 mb-3">
+                            <!-- El backend avisa por qué no se puede generar (p. ej. sin horas en el periodo). -->
+                            <p v-if="informe.periodo.aviso" class="text-600 mb-3">
+                                {{ informe.periodo.aviso }}
+                            </p>
+                            <p v-else class="text-600 mb-3">
                                 Tu informe de este periodo aún no se ha generado.
                             </p>
                             <Button
@@ -45,7 +49,7 @@
                                 :loading="generando === informe.periodo.id"
                                 @click="generar(informe.periodo.id)"
                             />
-                            <Tag v-else class="bg-gray-500">
+                            <Tag v-else-if="!informe.periodo.aviso" class="bg-gray-500">
                                 Podrás generarlo cuando administración habilite el periodo.
                             </Tag>
                         </template>
