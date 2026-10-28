@@ -47,4 +47,13 @@ return [
         'timeout' => (int) env('PAGO_ARCHIVOS_API_TIMEOUT', 30),
     ],
 
+    // Tramite documentario: vive en el backend de sistemas, que es quien
+    // genera los PDF. Comparte la misma credencial de integracion.
+    'tramite' => [
+        'url' => env('TRAMITE_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
+        'token' => env('TRAMITE_API_TOKEN') ?: env('BANCO_PREGUNTAS_API_TOKEN'),
+        // Generar el expediente completo tarda mas que una consulta normal.
+        'timeout' => (int) env('TRAMITE_API_TIMEOUT', 60),
+    ],
+
 ];

@@ -311,6 +311,14 @@ export default {
                     sizeIcon: "18px",
                     permission: "panel docente",
                 },
+                {
+                    label: "Trámite",
+                    path: "tramite",
+                    icon: "pi pi-fw pi-folder",
+                    to: "docentes.tramite",
+                    sizeIcon: "18px",
+                    permission: "panel docente",
+                },
             ],
         };
     },

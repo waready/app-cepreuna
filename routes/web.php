@@ -41,6 +41,7 @@ use App\Http\Controllers\LibroReclamaciones\LibroReclamacionesController;
 
 //Libro de Reclamaciones
 use App\Http\Controllers\Docente\AsistenciaController as AsistenciaDocente;
+use App\Http\Controllers\Docente\TramiteController as TramiteDocente;
 use App\Http\Controllers\Estudiante\HorarioController as HorarioEstudiante;
 use App\Http\Controllers\Estudiante\AsistenciaController as AsistenciaEstudiante;
 
@@ -319,6 +320,17 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                         // asistencias
                         Route::get('/asistencias', [AsistenciaDocente::class , 'index'])->name('docentes.asistencias');
                         Route::get('/get-asistencias', [AsistenciaDocente::class , 'getAsistencia'])->name('docentes.get-asistencias');
+
+                        // tramite documentario
+                        Route::get('/tramite', [TramiteDocente::class , 'index'])->name('docentes.tramite');
+                        Route::post('/tramite/generar/{periodo}', [TramiteDocente::class , 'armar'])
+                            ->whereNumber('periodo')->name('docentes.tramite.generar');
+                        Route::post('/tramite/{codigo}/{tipo}/subir', [TramiteDocente::class , 'subir'])
+                            ->name('docentes.tramite.subir');
+                        Route::post('/tramite/{codigo}/{tipo}/declarar', [TramiteDocente::class , 'declarar'])
+                            ->name('docentes.tramite.declarar');
+                        Route::get('/tramite/{codigo}/{tipo}', [TramiteDocente::class , 'documento'])
+                            ->name('docentes.tramite.documento');
                     }
                     );
                 }
@@ -329,3 +341,45 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                 Route::resource('/libroReclamaciones', LibroReclamacionesController::class);
                 Route::get('/libro-reclamaciones-tabla', [LibroReclamacionesController::class , 'tabla'])->name('libroReclamaciones.tabla');
             });
+
+/*
+ * Atajo de desarrollo para entrar como un docente sin pasar por Google.
+ *
+ * El login de esta aplicacion es OAuth de Google y en una maquina local no hay
+ * forma de completarlo, asi que probar el panel del docente seria imposible
+ * sin esto.
+ *
+ * Tiene dos cerrojos y hacen falta los dos: el entorno debe ser `local` y la
+ * variable LOGIN_PRUEBAS_DOCENTE debe estar puesta a mano. Ademas se lee con
+ * env() a proposito: si alguien cachea la configuracion -como hace el
+ * despliegue de produccion- env() devuelve null y la ruta ni se registra.
+ */
+if (app()->environment('local') && env('LOGIN_PRUEBAS_DOCENTE') === 'si') {
+    Route::get('/dev/entrar-docente/{documento}', function (string $documento) {
+        // El guard `docente` autentica DocenteApto, no Docente: es la cuenta
+        // del docente en un ciclo concreto.
+        $periodo = \App\Models\Periodo::actual();
+
+        $cuenta = \App\Models\DocenteApto::query()
+            ->whereHas('docente', fn ($q) => $q->where('nro_documento', $documento))
+            ->when($periodo, fn ($q) => $q->where('periodos_id', $periodo->id))
+            ->latest('id')
+            ->first();
+
+        abort_if(! $cuenta, 404, 'Ese documento no tiene cuenta de docente en el ciclo actual.');
+
+        Auth::guard('docente')->login($cuenta);
+
+        return redirect()->route('docentes.tramite');
+    })->name('dev.entrar-docente');
+
+    Route::get('/dev/quien-soy', function () {
+        return response()->json([
+            'docente' => Auth::guard('docente')->check(),
+            'id' => optional(Auth::guard('docente')->user())->id,
+            'sanctum' => Auth::guard('sanctum')->check(),
+            'web' => Auth::guard('web')->check(),
+            'sesion' => session()->getId(),
+        ]);
+    });
+}
