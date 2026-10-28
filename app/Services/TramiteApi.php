@@ -24,7 +24,11 @@ class TramiteApi
     {
         $r = $this->cliente()->get($this->url("/expediente/{$documento}"));
 
-        if ($r->status() === 404) {
+        // Solo el "no se encontro al docente" del backend -que trae `mensaje`-
+        // significa que no hay nada que mostrar. Cualquier otro 404 es una URL
+        // mal configurada y tiene que verse como error: tratarlo como "sin
+        // informes" escondio una configuracion equivocada en produccion.
+        if ($r->status() === 404 && is_array($r->json()) && array_key_exists('mensaje', $r->json())) {
             return ['docente' => null, 'informes' => []];
         }
 

@@ -50,11 +50,15 @@ return [
     // Tramite documentario: vive en el backend de sistemas, que es quien
     // genera los PDF. Comparte la misma credencial de integracion.
     'tramite' => [
-        // Sin TRAMITE_API_URL se deriva de la del banco de preguntas: las dos
-        // cuelgan de integraciones/cepre-app/ en el mismo backend. Usarla tal
-        // cual mandaba los pedidos a .../banco-preguntas/expediente y daba 404.
+        // Sin TRAMITE_API_URL se deriva de BANCO_PREGUNTAS_API_URL, que es la
+        // base de la API (https://.../api): el cliente del banco le agrega
+        // /integraciones/cepre-app/banco-preguntas y aqui se agrega lo mismo
+        // con /tramite. Usarla tal cual mandaba los pedidos a .../api/expediente,
+        // que no existe.
         'url' => env('TRAMITE_API_URL')
-            ?: preg_replace('#/banco-preguntas/*$#', '/tramite', (string) env('BANCO_PREGUNTAS_API_URL')),
+            ?: (env('BANCO_PREGUNTAS_API_URL')
+                ? rtrim((string) env('BANCO_PREGUNTAS_API_URL'), '/').'/integraciones/cepre-app/tramite'
+                : null),
         'token' => env('TRAMITE_API_TOKEN') ?: env('BANCO_PREGUNTAS_API_TOKEN'),
         // Generar el expediente completo tarda mas que una consulta normal.
         'timeout' => (int) env('TRAMITE_API_TIMEOUT', 60),
