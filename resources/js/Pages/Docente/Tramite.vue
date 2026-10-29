@@ -316,6 +316,9 @@ export default {
             if (doc.estado === "no_aplica") return "No aplica";
             if (doc.origen === "generado") return "Listo";
             if (doc.origen === "fisico") return "En físico";
+            // Lo que pone administración, como la copia del contrato, está
+            // listo cuando lo da por cumplido: no hay nada que validar del docente.
+            if (doc.origen === "carga_admin" && doc.estado === "validado") return "Listo";
             return {
                 disponible: "Disponible",
                 pendiente: "Pendiente",
