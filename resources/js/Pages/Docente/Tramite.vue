@@ -54,6 +54,58 @@
                             </Tag>
                         </template>
 
+                        <!-- Ya entregado: la lista de documentos ya no le sirve,
+                             porque no puede cambiar nada. Queda el comprobante,
+                             lo que presentó y por dónde va. -->
+                        <template v-else-if="presentado(informe)">
+                            <div class="flex align-items-center gap-3 flex-wrap mb-2">
+                                <span class="codigo">{{ informe.expediente.codigo }}</span>
+                                <Tag :class="claseExpediente(informe.expediente)">
+                                    {{ informe.expediente.estado_texto }}
+                                </Tag>
+                            </div>
+
+                            <p class="recepcion mb-3">
+                                <i class="pi pi-check-circle mr-1"></i>
+                                Lo entregaste en la oficina el
+                                <strong>{{ fecha(informe.expediente.recepcionado_en) }}</strong>.
+                            </p>
+                            <p v-if="informe.expediente.nota" class="text-sm text-600 mb-3">
+                                Nota de administración: {{ informe.expediente.nota }}
+                            </p>
+
+                            <div class="flex align-items-center gap-3 flex-wrap mb-4">
+                                <div v-if="informe.horas" class="dato">
+                                    <div class="text-500 text-sm">Total a pagar</div>
+                                    <div class="text-xl font-bold text-green-700">{{ informe.horas.total_con_descuento }} h</div>
+                                </div>
+                                <a
+                                    class="p-button p-component p-button-danger"
+                                    :href="urlDocumento(informe.expediente.codigo, 'completo')"
+                                    target="_blank"
+                                    rel="noopener"
+                                >
+                                    <i class="pi pi-download mr-2"></i> Descargar lo que presentaste
+                                </a>
+                            </div>
+
+                            <div class="font-bold mb-2">Seguimiento de tu informe</div>
+                            <ol class="seguimiento">
+                                <li v-for="(paso, i) in informe.seguimiento" :key="i" :class="paso.estado">
+                                    <i :class="iconoPaso(paso)"></i>
+                                    <div>
+                                        <div><strong>{{ paso.oficina }}</strong> — {{ paso.accion }}</div>
+                                        <div v-if="paso.fecha" class="text-500 text-sm">
+                                            {{ paso.estado === "actual" ? "Desde el" : "El" }} {{ fecha(paso.fecha) }}
+                                        </div>
+                                    </div>
+                                </li>
+                            </ol>
+                            <p class="text-500 text-sm mt-2 mb-0">
+                                Los siguientes pasos aparecerán aquí a medida que tu informe avance por las oficinas.
+                            </p>
+                        </template>
+
                         <template v-else>
                             <div class="flex align-items-center gap-3 flex-wrap mb-2">
                                 <span class="codigo">{{ informe.expediente.codigo }}</span>
@@ -238,6 +290,17 @@ export default {
         // un papel firmado en la oficina y el expediente queda como está.
         const enPreparacion = (informe) => informe.expediente?.estado === "preparacion";
 
+        // Entregado y en camino. Un expediente observado no entra: ahí sí tiene
+        // que ver la lista para saber qué subsanar.
+        const presentado = (informe) => !!informe.expediente
+            && !["preparacion", "observado"].includes(informe.expediente.estado)
+            && !!informe.expediente.recepcionado_en;
+
+        const iconoPaso = (paso) => ({
+            hecho: "pi pi-check-circle",
+            actual: "pi pi-circle-fill",
+        }[paso.estado] ?? "pi pi-circle");
+
         const claseExpediente = (expediente) => ({
             preparacion: "bg-gray-500",
             recepcionado: "bg-green-600",
@@ -348,6 +411,7 @@ export default {
             title, informes, error, generando, campoArchivo, subiendo, marcando,
             generar, urlDocumento, comoSeObtiene, textoEstado, claseEstado, resumenHoras,
             elegirArchivo, enviarArchivo, declarar, enPreparacion, claseExpediente, fecha,
+            presentado, iconoPaso,
         };
     },
     components: { AppLayout },
@@ -400,6 +464,44 @@ export default {
     color: var(--green-700, #15803d);
     font-size: 0.95rem;
     margin: 0;
+}
+/* Como el seguimiento de un envío: una línea que une los pasos, verde lo
+   que ya pasó, azul donde está ahora y gris lo que falta. */
+.seguimiento {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.seguimiento li {
+    position: relative;
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 0 1rem 0;
+}
+.seguimiento li:last-child {
+    padding-bottom: 0;
+}
+.seguimiento li:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 0.6rem;
+    top: 1.4rem;
+    bottom: 0.1rem;
+    border-left: 2px solid var(--surface-border);
+}
+.seguimiento li > i {
+    font-size: 1.25rem;
+    line-height: 1.4rem;
+    color: var(--gray-400, #9ca3af);
+}
+.seguimiento li.hecho > i {
+    color: var(--green-600, #16a34a);
+}
+.seguimiento li.actual > i {
+    color: var(--blue-500, #3b82f6);
+}
+.seguimiento li.pendiente {
+    color: var(--text-color-secondary);
 }
 .no-corresponde {
     display: inline-flex;
