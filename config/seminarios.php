@@ -54,6 +54,10 @@ return [
                     'video' => 'https://youtu.be/I3kw2VOj9fU',
                     'pdf' => 'https://drive.google.com/file/d/1xewGHWf0GqVAKBOOp6fXYulNw-K9hoGR/view?usp=sharing',
                 ],
+                4 => [
+                    'video' => 'https://youtu.be/t7y_A2WAFaQ',
+                    'pdf' => 'https://drive.google.com/file/d/1up2jAXe9lh49dcqWA3EXHRF2rL3r2woL/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -73,6 +77,10 @@ return [
                     'video' => 'https://youtu.be/6l65nE2HCwI',
                     'pdf' => 'https://drive.google.com/file/d/1r1LFE2cuGZH5ZckwZBdv2oekPSmNg6C0/view?usp=sharing',
                 ],
+                4 => [
+                    'video' => 'https://youtu.be/a5DJsVtVNMk',
+                    'pdf' => 'https://drive.google.com/file/d/1WZ_1__H27hSPmiPVo281L1LlwDJQT0cU/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -91,6 +99,10 @@ return [
                 3 => [
                     'video' => 'https://youtu.be/2ZbzPift4eY',
                     'pdf' => 'https://drive.google.com/file/d/1En-VP9JlRsVuq8SqKvKjTLFB5ZHTW5fz/view?usp=sharing',
+                ],
+                4 => [
+                    'video' => 'https://youtu.be/nARdr5eHkiw',
+                    'pdf' => 'https://drive.google.com/file/d/1XxcK1UglYkj8paExeihQU2cZpQbprLcR/view?usp=sharing',
                 ],
             ],
         ],

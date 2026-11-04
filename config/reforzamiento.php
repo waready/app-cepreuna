@@ -43,6 +43,7 @@ return [
                 1 => ['video' => 'https://youtu.be/YIoA3UW8frQ'],
                 2 => ['video' => 'https://youtu.be/9UebIGciJqg'],
                 3 => ['video' => 'https://youtu.be/QEFl5IwBAOI'],
+                4 => ['video' => 'https://youtu.be/V-vt7fRjUz4'],
             ],
         ],
 
@@ -73,6 +74,7 @@ return [
                 1 => ['video' => 'https://youtu.be/xSUXITw1oe8'],
                 2 => ['video' => 'https://youtu.be/r2VvX2l41KY'],
                 3 => ['video' => 'https://youtu.be/NEzS6WKZVtk'],
+                4 => ['video' => 'https://youtu.be/RwWW4ZB7ANI'],
             ],
         ],
 
@@ -93,6 +95,7 @@ return [
                 1 => ['video' => 'https://youtu.be/lI_rLADs2TE'],
                 2 => ['video' => 'https://youtu.be/uvztU8Lk5zQ'],
                 3 => ['video' => 'https://youtu.be/VswnfKX__As'],
+                4 => ['video' => 'https://youtu.be/PLrs_vlyWr4'],
             ],
         ],
 
