@@ -42,8 +42,8 @@ return [
     ],
 
     'simulacro' => [
-        'formulario_url' => env('SIMULACRO_FORMULARIO_URL') ?: 'https://cepreuna.edu.pe/inscripciones/simulacro',
-        'api_url' => env('SIMULACRO_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
+        'formulario_url' => env('SIMULACRO_FORMULARIO_URL') ?: 'https://sistemas.cepreuna.edu.pe/inscripciones/simulacro',
+        'api_url' => env('SIMULACRO_API_URL') ?: (env('BANCO_PREGUNTAS_API_URL') ?: 'https://sistemas.cepreuna.edu.pe/backend-api/api'),
     ],
 
     'pago_archivos' => [
