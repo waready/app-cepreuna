@@ -41,6 +41,11 @@ return [
         'timeout' => (int) env('BANCO_PREGUNTAS_API_TIMEOUT', 30),
     ],
 
+    'simulacro' => [
+        'formulario_url' => env('SIMULACRO_FORMULARIO_URL') ?: 'https://cepreuna.edu.pe/inscripciones/simulacro',
+        'api_url' => env('SIMULACRO_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
+    ],
+
     'pago_archivos' => [
         'url' => env('PAGO_ARCHIVOS_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
         'token' => env('PAGO_ARCHIVOS_API_TOKEN') ?: env('BANCO_PREGUNTAS_API_TOKEN'),

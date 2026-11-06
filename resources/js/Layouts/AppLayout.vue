@@ -211,6 +211,14 @@ export default {
                     permission: "panel estudiante",
                 },
                 {
+                    label: "Simulacro",
+                    path: "simulacro",
+                    icon: "pi pi-fw pi-file-pdf",
+                    to: "estudiantes.simulacro",
+                    sizeIcon: "18px",
+                    permission: "panel estudiante",
+                },
+                {
                     label: "Libro de Reclamaciones",
                     path: "libro-reclamaciones",
                     icon: "pi pi-fw pi-book",

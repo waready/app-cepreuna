@@ -34,6 +34,7 @@ use App\Http\Controllers\NosotrosController;
 use App\Http\Controllers\Docente\HorarioController as HorarioDocente;
 use App\Http\Controllers\Estudiante\PagoController as PagoEstudiante;
 use App\Http\Controllers\Estudiante\PagoRegistroController as PagoRegistroEstudiante;
+use App\Http\Controllers\Estudiante\SimulacroController as SimulacroEstudiante;
 use App\Http\Controllers\Estudiante\TestController as TestEstudiante;
 use App\Http\Controllers\Estudiante\CursosController as CursoEstudiante;
 use App\Http\Controllers\Estudiante\VideosSemanalesController as VideosSemanalesEstudiante;
@@ -258,6 +259,8 @@ Route::middleware(['auth:sanctum', 'verified'])->group(function () {
                         );
                         // paogos
                         Route::get('/pagos', [PagoEstudiante::class , 'index'])->name('estudiantes.pagos');
+                        Route::get('/simulacro', [SimulacroEstudiante::class, 'index'])->middleware('auth:estudiante')->name('estudiantes.simulacro');
+                        Route::get('/simulacro/ficha', [SimulacroEstudiante::class, 'ficha'])->middleware('auth:estudiante')->name('estudiantes.simulacro.ficha');
                         Route::get('/test', [TestEstudiante::class , 'index'])->name('estudiantes.test');
                         // videos por semana: idiomas y reforzamiento
                         Route::get('/seminarios', [VideosSemanalesEstudiante::class , 'seminarios'])->name('estudiantes.seminarios');
