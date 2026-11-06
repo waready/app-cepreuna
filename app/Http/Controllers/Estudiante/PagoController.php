@@ -200,19 +200,26 @@ class PagoController extends Controller
             return [$a['fecha'], $a['orden']] <=> [$b['fecha'], $b['orden']];
         });
 
+        // Fecha en que cada cuota quedo pagada completa (nro_cuota => fecha).
+        $completadas = [];
+
         foreach ($eventos as $evento) {
             $moraExplicita = (float) $evento['mora'];
+            $principal = (float) $evento['principal'];
 
             if ($moraExplicita > 0) {
-                $this->aplicarMoraAlTarifario($tarifario, $moraExplicita, $evento['fecha'], $fines);
+                // La mora que no le corresponde a ninguna cuota cuenta como
+                // pago de la cuota pendiente: el estudiante la pago igual.
+                $principal += $this->aplicarMoraAlTarifario($tarifario, $moraExplicita, $evento['fecha'], $fines, $completadas);
             }
 
             $this->aplicarPrincipalAlTarifario(
                 $tarifario,
-                (float) $evento['principal'],
+                $principal,
                 $evento['fecha'],
                 $fines,
-                $moraExplicita <= 0
+                $moraExplicita <= 0,
+                $completadas
             );
         }
 
@@ -222,7 +229,15 @@ class PagoController extends Controller
         }
     }
 
-    protected function aplicarMoraAlTarifario($tarifario, float $monto, ?string $fecha, array $fines): void
+    /**
+     * Debe mora la cuota vencida a la fecha del pago que no se pago completa
+     * dentro de su plazo. Antes bastaba con que estuviera vencida, y la cuota
+     * pagada a tiempo se llevaba la mora de la siguiente: la app mostraba
+     * mora en la 1ra cuota y la 2da seguia debiendola (61881109, 05/11/2026).
+     * Misma regla que CepreApp\PagoController del backend. Devuelve la mora
+     * que no le corresponde a ninguna cuota.
+     */
+    protected function aplicarMoraAlTarifario($tarifario, float $monto, ?string $fecha, array $fines, array $completadas = []): float
     {
         foreach ($tarifario as $tarifa) {
             if ($monto <= 0) {
@@ -230,8 +245,13 @@ class PagoController extends Controller
             }
 
             $nroCuota = (int) $tarifa->nro_cuota;
+            $fin = $fines[$nroCuota] ?? null;
 
-            if ($nroCuota === 0 || ! $this->pagoFueraDeFecha($fecha, $fines[$nroCuota] ?? null)) {
+            if ($nroCuota === 0 || ! $this->pagoFueraDeFecha($fecha, $fin)) {
+                continue;
+            }
+
+            if (isset($completadas[$nroCuota]) && ! $this->pagoFueraDeFecha($completadas[$nroCuota], $fin)) {
                 continue;
             }
 
@@ -240,9 +260,11 @@ class PagoController extends Controller
             $tarifa->mora = (float) $tarifa->mora + $aplicado;
             $monto -= $aplicado;
         }
+
+        return max(0, $monto);
     }
 
-    protected function aplicarPrincipalAlTarifario($tarifario, float $monto, ?string $fecha, array $fines, bool $inferirMora): void
+    protected function aplicarPrincipalAlTarifario($tarifario, float $monto, ?string $fecha, array $fines, bool $inferirMora, ?array &$completadas = null): void
     {
         foreach ($tarifario as $tarifa) {
             if ($monto <= 0) {
@@ -268,6 +290,11 @@ class PagoController extends Controller
             $aplicado = min($monto, $pendiente);
             $tarifa->pagado = (float) $tarifa->pagado + $aplicado;
             $monto -= $aplicado;
+
+            if ($completadas !== null && ! isset($completadas[$nroCuota])
+                && (float) $tarifa->pagado >= (float) $tarifa->monto - 0.005) {
+                $completadas[$nroCuota] = $fecha;
+            }
         }
 
         if ($monto > 0 && $tarifario->isNotEmpty()) {
