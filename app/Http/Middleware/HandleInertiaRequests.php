@@ -11,6 +11,7 @@ use App\Models\Estudiante;
 use App\Models\User;
 use App\Support\DocentePreguntasDemoAccess;
 use App\Support\MediaUrl;
+use App\Support\SimulacroDisponibilidad;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -100,6 +101,8 @@ class HandleInertiaRequests extends Middleware
             'response' => $request->session()->get('response'),
             'usuario' => $data,
             'features' => [
+                'simulacro_habilitado' => Auth::guard('estudiante')->check()
+                    && app(SimulacroDisponibilidad::class)->habilitado(),
                 'docente_preguntas_demo' => app(DocentePreguntasDemoAccess::class)
                     ->permite(Auth::guard('docente')->user()),
             ],

@@ -217,6 +217,7 @@ export default {
                     to: "estudiantes.simulacro",
                     sizeIcon: "18px",
                     permission: "panel estudiante",
+                    visible: () => this.$page.props.features?.simulacro_habilitado === true,
                 },
                 {
                     label: "Libro de Reclamaciones",

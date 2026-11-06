@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Estudiante;
+use App\Support\SimulacroDisponibilidad;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -28,6 +29,7 @@ class EstudianteSimulacroTest extends TestCase
         });
         Schema::create('simulacro_configuraciones', function (Blueprint $table) {
             $table->id(); $table->unsignedBigInteger('periodos_id'); $table->string('titulo');
+            $table->boolean('estado')->default(false);
             $table->dateTime('fecha_examen')->nullable(); $table->time('hora_ingreso_inicio')->nullable();
             $table->time('hora_ingreso_fin')->nullable(); $table->string('lugar')->nullable();
         });
@@ -85,6 +87,23 @@ class EstudianteSimulacroTest extends TestCase
         $this->registrar(1, 10, 'MI-FICHA');
         Http::fake(['backend.test/*' => Http::response('<html>Error</html>', 200)]);
         $this->get('/estudiantes/simulacro/ficha')->assertStatus(502);
+    }
+
+    public function test_menu_is_available_only_when_the_current_cycle_simulacro_is_enabled()
+    {
+        $disponibilidad = app(SimulacroDisponibilidad::class);
+        $this->assertFalse($disponibilidad->habilitado());
+        DB::table('simulacro_configuraciones')->insert([
+            ['periodos_id' => 9, 'titulo' => 'Anterior activo', 'estado' => 1],
+            ['periodos_id' => 10, 'titulo' => 'Actual deshabilitado', 'estado' => 0],
+        ]);
+        $this->assertFalse($disponibilidad->habilitado());
+        DB::table('simulacro_configuraciones')->where('periodos_id', 10)->update(['estado' => 1]);
+        $this->assertTrue($disponibilidad->habilitado());
+        DB::table('simulacro_configuraciones')->where('periodos_id', 10)->update(['estado' => 0]);
+        $this->assertFalse($disponibilidad->habilitado());
+        DB::table('periodos')->where('id', 10)->update(['estado' => '0']);
+        $this->assertFalse($disponibilidad->habilitado());
     }
 
     private function registrar(int $estudiante, int $periodo, string $codigo): void
