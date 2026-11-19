@@ -89,10 +89,8 @@ return [
                     'video' => 'https://youtu.be/a5DJsVtVNMk',
                     'pdf' => 'https://drive.google.com/file/d/1WZ_1__H27hSPmiPVo281L1LlwDJQT0cU/view?usp=sharing',
                 ],
-                // El video (_XQNr6K4Rvg) esta privado en YouTube: se publica
-                // solo el cuadernillo hasta que lo pongan visible, para no
-                // dejar al estudiante un enlace que le pide iniciar sesion.
                 5 => [
+                    'video' => 'https://youtu.be/_XQNr6K4Rvg',
                     'pdf' => 'https://drive.google.com/file/d/1RVGEfKSBoth_Cs2buWyPaSKA82h1fG0n/view?usp=sharing',
                 ],
                 6 => [
@@ -127,8 +125,8 @@ return [
                     'video' => 'https://youtu.be/nARdr5eHkiw',
                     'pdf' => 'https://drive.google.com/file/d/1XxcK1UglYkj8paExeihQU2cZpQbprLcR/view?usp=sharing',
                 ],
-                // Video Gc3L_f6NPtU privado en YouTube; va solo el cuadernillo.
                 5 => [
+                    'video' => 'https://youtu.be/Gc3L_f6NPtU',
                     'pdf' => 'https://drive.google.com/file/d/1P-ZSFgTUAPSeE_XMwY9Oa-9-GrtpID19/view?usp=sharing',
                 ],
                 6 => [
@@ -139,8 +137,8 @@ return [
                     'video' => 'https://youtu.be/jznGoTyEMmQ',
                     'pdf' => 'https://drive.google.com/file/d/1JZkw8cyasCs0KG3YEwJFY7q_DzeYvIIR/view?usp=sharing',
                 ],
-                // Video -7dC4cWk-94 privado en YouTube; va solo el cuadernillo.
                 8 => [
+                    'video' => 'https://youtu.be/-7dC4cWk-94',
                     'pdf' => 'https://drive.google.com/file/d/1hirhNXR4EaRbPL4SWb2L2tfv67loVtzH/view?usp=sharing',
                 ],
             ],
