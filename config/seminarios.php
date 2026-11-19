@@ -58,6 +58,14 @@ return [
                     'video' => 'https://youtu.be/t7y_A2WAFaQ',
                     'pdf' => 'https://drive.google.com/file/d/1up2jAXe9lh49dcqWA3EXHRF2rL3r2woL/view?usp=sharing',
                 ],
+                5 => [
+                    'video' => 'https://youtu.be/KS3BxarAYoY',
+                    'pdf' => 'https://drive.google.com/file/d/1jBsx0gb77VlcRLCEZDYLjo2bbQwmD2Fh/view?usp=sharing',
+                ],
+                6 => [
+                    'video' => 'https://youtu.be/9NTrJm1OLy0',
+                    'pdf' => 'https://drive.google.com/file/d/1YRofcEBYu6PvBCgsMk2dcgaraYfsYPRj/view?usp=sharing',
+                ],
             ],
         ],
 
@@ -81,6 +89,21 @@ return [
                     'video' => 'https://youtu.be/a5DJsVtVNMk',
                     'pdf' => 'https://drive.google.com/file/d/1WZ_1__H27hSPmiPVo281L1LlwDJQT0cU/view?usp=sharing',
                 ],
+                // El video (_XQNr6K4Rvg) esta privado en YouTube: se publica
+                // solo el cuadernillo hasta que lo pongan visible, para no
+                // dejar al estudiante un enlace que le pide iniciar sesion.
+                5 => [
+                    'pdf' => 'https://drive.google.com/file/d/1RVGEfKSBoth_Cs2buWyPaSKA82h1fG0n/view?usp=sharing',
+                ],
+                6 => [
+                    'video' => 'https://youtu.be/OL76eciLpLM',
+                    'pdf' => 'https://drive.google.com/file/d/1CGh59s6L3bUQIN9l7D9b1533TddXJ8sG/view?usp=sharing',
+                ],
+                // El cuadernillo de esta semana aun no llega; el panel muestra
+                // el video y marca "Cuadernillo proximamente".
+                7 => [
+                    'video' => 'https://youtu.be/-Ind8sv1f3M',
+                ],
             ],
         ],
 
@@ -103,6 +126,22 @@ return [
                 4 => [
                     'video' => 'https://youtu.be/nARdr5eHkiw',
                     'pdf' => 'https://drive.google.com/file/d/1XxcK1UglYkj8paExeihQU2cZpQbprLcR/view?usp=sharing',
+                ],
+                // Video Gc3L_f6NPtU privado en YouTube; va solo el cuadernillo.
+                5 => [
+                    'pdf' => 'https://drive.google.com/file/d/1P-ZSFgTUAPSeE_XMwY9Oa-9-GrtpID19/view?usp=sharing',
+                ],
+                6 => [
+                    'video' => 'https://youtu.be/1tcZgOsM0Jo',
+                    'pdf' => 'https://drive.google.com/file/d/1aIkWz2PrrEqmOiXGXnF-4wDjMMmFwZI4/view?usp=sharing',
+                ],
+                7 => [
+                    'video' => 'https://youtu.be/jznGoTyEMmQ',
+                    'pdf' => 'https://drive.google.com/file/d/1JZkw8cyasCs0KG3YEwJFY7q_DzeYvIIR/view?usp=sharing',
+                ],
+                // Video -7dC4cWk-94 privado en YouTube; va solo el cuadernillo.
+                8 => [
+                    'pdf' => 'https://drive.google.com/file/d/1hirhNXR4EaRbPL4SWb2L2tfv67loVtzH/view?usp=sharing',
                 ],
             ],
         ],
