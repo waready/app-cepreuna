@@ -49,6 +49,7 @@ jobs:
           php artisan test tests/Feature/DocenteModulesTest.php
           php artisan test tests/Feature/BancoPreguntasSchemaTest.php
           php artisan test tests/Feature/EstudianteSimulacroTest.php
+          php artisan test tests/Feature/EstudianteConstanciaNoAdeudoTest.php
 
       - name: Configurar Node
         uses: actions/setup-node@v4

@@ -46,6 +46,12 @@ return [
         'api_url' => env('SIMULACRO_API_URL') ?: (env('BANCO_PREGUNTAS_API_URL') ?: 'https://sistemas.cepreuna.edu.pe/backend-api/api'),
     ],
 
+    // API legacy publicada en el dominio del sistema central (GET /api/v1/{dni}).
+    'constancia_no_adeudo' => [
+        'api_url' => env('CONSTANCIA_NO_ADEUDO_API_URL') ?: 'https://sistemas.cepreuna.edu.pe',
+        'token' => env('CONSTANCIA_NO_ADEUDO_API_TOKEN') ?: 'cepreuna_v1_api',
+    ],
+
     'pago_archivos' => [
         'url' => env('PAGO_ARCHIVOS_API_URL') ?: env('BANCO_PREGUNTAS_API_URL'),
         'token' => env('PAGO_ARCHIVOS_API_TOKEN') ?: env('BANCO_PREGUNTAS_API_TOKEN'),

@@ -23,7 +23,7 @@
                 <div v-if="data.estudiante && data.estudiante.matricula.habilitado_estado == '1'" class="col-12 text-center">
                     <InlineMessage severity="success">Ud. se encuentra habilitado para su inscripción al examen del periodo actual de CEPREUNA.</InlineMessage><br />
 
-                    <a class="p-button p-component p-button-sm p-button-danger mt-2" :href="$page.props.usuario.url + '/dga/estudiantes/pdf-constancia/' + idMatricula" target="_blank">
+                    <a class="p-button p-component p-button-sm p-button-danger mt-2" :href="route('estudiantes.constancia-no-adeudo')" target="_blank">
                         <span class="pi pi-file-pdf p-button-icon p-button-icon-left"></span>
                         <span class="p-button-label">Descargar Constancia</span>
                     </a>
@@ -470,19 +470,10 @@ export default {
                 });
             }
         };
-        // crypt id
-        const idMatricula = ref("");
-        const encrypt = () => {
-            axios.get(usuario.value.url + "/api/perfil/encrypt/" + data.value.estudiante.matricula.id).then((response) => {
-                idMatricula.value = response.data;
-            });
-        };
         onMounted(() => {
             getHorario();
-            encrypt();
         });
         return {
-            idMatricula,
             title,
             horarios,
             area,
