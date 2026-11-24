@@ -64,6 +64,7 @@ return [
                 1 => ['video' => 'https://youtu.be/FbgzYP_uK8g'],
                 2 => ['video' => 'https://youtu.be/yy9eL5flkIM'],
                 3 => ['video' => 'https://youtu.be/KAleyWe4sOM'],
+                4 => ['video' => 'https://youtu.be/1CYZX3WQnoY'],
             ],
         ],
 
